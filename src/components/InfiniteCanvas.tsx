@@ -3,6 +3,7 @@ import { AiOutlineZoomIn, AiOutlineZoomOut, AiOutlineReload, AiOutlineDrag } fro
 import { CanvasModel } from "../models/CanvasModel";
 import { DiagramComponent } from "../models/DiagramComponent";
 import { ComponentRenderer } from "./ComponentRenderer";
+import DiagramAssociation from "../models/DiagramAssociation";
 
 type Props = {
   model?: CanvasModel;
@@ -11,6 +12,7 @@ type Props = {
   background?: string;
   showControls?: boolean;
   components?: DiagramComponent[];
+  associations?: DiagramAssociation[];
 };
 
 const styles: { [k: string]: React.CSSProperties } = {
@@ -42,7 +44,7 @@ const styles: { [k: string]: React.CSSProperties } = {
   },
 };
 
-export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, background = "#ffffff", showControls = true, components }) => {
+export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, background = "#ffffff", showControls = true, components, associations }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const modelRef = useRef<CanvasModel>(model ?? new CanvasModel({ cellSize, majorEvery }));
   const propsRef = useRef<{ components?: DiagramComponent[] }>({ components: undefined });
@@ -54,6 +56,11 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
   useEffect(() => {
     propsRef.current.components = components;
   }, [components]);
+
+  // keep associations prop in a ref for the render loop
+  useEffect(() => {
+    (propsRef.current as any).associations = associations;
+  }, [associations]);
 
   useEffect(() => {
     const cvs = canvasRef.current;
@@ -128,13 +135,14 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       ctx.save();
       ctx.scale(dpr, dpr);
       drawGrid(ctx);
+      // Translate the context by the canvas offsets so component.draw can work in world coordinates
+      ctx.save();
+      const m = modelRef.current;
+      ctx.translate(m.offsetX, m.offsetY);
+
       // render components if provided via propsRef
       const comps = propsRef.current.components as DiagramComponent[] | undefined;
       if (Array.isArray(comps) && comps.length > 0) {
-        // Translate the context by the canvas offsets so component.draw can work in world coordinates
-        ctx.save();
-        const m = modelRef.current;
-        ctx.translate(m.offsetX, m.offsetY);
         const renderer = new ComponentRenderer(ctx, m.scale);
         for (const c of comps) {
           try {
@@ -143,8 +151,21 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
             // swallow render errors per-component
           }
         }
-        ctx.restore();
       }
+
+      // render associations if any (they draw in world coords too)
+      const assocs = (propsRef.current as any).associations as DiagramAssociation[] | undefined;
+      if (Array.isArray(assocs) && assocs.length > 0) {
+        for (const a of assocs) {
+          try {
+            a.draw(ctx, m.scale);
+          } catch (err) {
+            // swallow
+          }
+        }
+      }
+
+      ctx.restore();
       ctx.restore();
     }
 
