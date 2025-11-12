@@ -78,6 +78,130 @@ export class LayoutManager {
     // Fallback: place at center
     return { x: Math.round(centerWorldX), y: Math.round(centerWorldY) };
   }
+
+  /**
+   * Compute a perpendicular offset (in world units) for a new association between
+   * source and target so multiple associations between the same pair are drawn
+   * with small parallel offsets to reduce overlap.
+   *
+   * Algorithm: count existing associations between the same unordered pair; for
+   * the new association (placed at the end), compute its index i = existingCount
+   * and total t = existingCount + 1, then offset = (i - (t-1)/2) * spacing.
+   */
+  static computeAssociationOffset(opts: {
+    source: import("./DiagramComponent").DiagramComponent;
+    target: import("./DiagramComponent").DiagramComponent;
+    associations?: Array<import("./DiagramAssociation").DiagramAssociation> | null;
+    spacing?: number; // in world units
+  }): number {
+    const { source, target, associations = [], spacing = 12 } = opts;
+    const sId = (source as any).id;
+    const tId = (target as any).id;
+    if (!sId || !tId) return 0;
+    const existing = (associations || []).filter((a) => {
+      try {
+        const aSrc = (a as any).source?.id;
+        const aTgt = (a as any).target?.id;
+        if (!aSrc || !aTgt) return false;
+        return (aSrc === sId && aTgt === tId) || (aSrc === tId && aTgt === sId);
+      } catch {
+        return false;
+      }
+    });
+    const c = existing.length;
+    const t = c + 1;
+    const i = c; // new one will be at the end
+    const offset = (i - (t - 1) / 2) * spacing;
+    return offset;
+  }
+
+  /**
+   * Assign symmetric perpendicular offsets to all associations that connect the
+   * same unordered pair (source <-> target). This ensures the group of
+   * parallel edges are spaced evenly around the centerline.
+   *
+   * The method mutates the association objects in the provided `associations`
+   * array (so call it before you set state) and also returns the new offsets
+   * for convenience.
+   */
+  static assignOffsetsForPair(opts: {
+    source: import("./DiagramComponent").DiagramComponent;
+    target: import("./DiagramComponent").DiagramComponent;
+    associations: Array<import("./DiagramAssociation").DiagramAssociation>;
+    spacing?: number;
+  }): number[] {
+    const { source, target, associations, spacing = 12 } = opts;
+    const sId = (source as any).id;
+    const tId = (target as any).id;
+    if (!sId || !tId) return [];
+
+    // collect indices of associations that connect these two nodes (unordered)
+    const groupIndices: number[] = [];
+    associations.forEach((a, idx) => {
+      try {
+        const aSrc = (a as any).source?.id;
+        const aTgt = (a as any).target?.id;
+        if (!aSrc || !aTgt) return;
+        if ((aSrc === sId && aTgt === tId) || (aSrc === tId && aTgt === sId)) {
+          groupIndices.push(idx);
+        }
+      } catch {
+        // ignore
+      }
+    });
+
+    const t = groupIndices.length;
+    if (t === 0) return [];
+
+    // assign symmetric offsets: for j in [0..t-1], offset = (j - (t-1)/2) * spacing
+    const offsets: number[] = [];
+    groupIndices.forEach((assocIdx, j) => {
+      const off = (j - (t - 1) / 2) * spacing;
+      const a = associations[assocIdx] as any;
+      a.offset = off;
+      offsets.push(off);
+    });
+
+    return offsets;
+  }
+
+  /**
+   * Assign offsets for all associations in the list, grouping by unordered
+   * endpoint pair. This mutates the provided associations array and returns a
+   * map of pairKey -> offsets array for callers who need them.
+   */
+  static assignOffsetsForAll(associations: Array<import("./DiagramAssociation").DiagramAssociation>, spacing = 12) {
+    // group indices by unordered pair key
+    const groups = new Map<string, number[]>();
+    associations.forEach((a, idx) => {
+      try {
+        const aSrc = (a as any).source?.id;
+        const aTgt = (a as any).target?.id;
+        if (!aSrc || !aTgt) return;
+        const key = aSrc < aTgt ? `${aSrc}|${aTgt}` : `${aTgt}|${aSrc}`;
+        const arr = groups.get(key) || [];
+        arr.push(idx);
+        groups.set(key, arr);
+      } catch {
+        // ignore
+      }
+    });
+
+    const result = new Map<string, number[]>();
+    for (const [key, indices] of groups.entries()) {
+      const t = indices.length;
+      const offsets: number[] = [];
+      indices.forEach((assocIdx, j) => {
+        const off = (j - (t - 1) / 2) * spacing;
+        const a = associations[assocIdx] as any;
+        a.offset = off;
+        offsets.push(off);
+      });
+      result.set(key, offsets);
+    }
+
+    return result;
+  }
 }
 
 export default LayoutManager;

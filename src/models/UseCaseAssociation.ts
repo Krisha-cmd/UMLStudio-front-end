@@ -6,8 +6,8 @@ export type UseCaseAssocType = "extends" | "includes";
 export class UseCaseAssociation extends DiagramAssociation {
   assocType: UseCaseAssocType;
 
-  constructor(source: DiagramComponent, target: DiagramComponent, assocType: UseCaseAssocType = "includes") {
-    super(source, target, assocType === "includes" ? "<<includes>>" : "<<extends>>");
+  constructor(source: DiagramComponent, target: DiagramComponent, assocType: UseCaseAssocType = "includes", offset?: number) {
+    super(source, target, assocType === "includes" ? "<<includes>>" : "<<extends>>", offset);
     this.assocType = assocType;
     (this as any).type = "usecase-association";
   }
@@ -67,7 +67,7 @@ export class UseCaseAssociation extends DiagramAssociation {
     const src = resolver(json.sourceId);
     const tgt = resolver(json.targetId);
     if (!src || !tgt) return null;
-    const assoc = new UseCaseAssociation(src, tgt, json.assocType ?? "includes");
+    const assoc = new UseCaseAssociation(src, tgt, json.assocType ?? "includes", json.offset);
     assoc.id = json.id ?? assoc.id;
     return assoc;
   }

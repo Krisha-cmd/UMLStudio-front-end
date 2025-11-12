@@ -3,6 +3,7 @@ import LayoutManager from "../models/LayoutManager";
 import { CanvasModel } from "../models/CanvasModel";
 import { ActorComponent } from "../models/ActorComponent";
 import type { DiagramComponent } from "../models/DiagramComponent";
+import type DiagramAssociation from "../models/DiagramAssociation";
 import { UseCaseComponent } from "../models/UseCaseComponent";
 import type { UseCaseAssocType } from "../models/UseCaseAssociation";
 
@@ -10,9 +11,12 @@ type Props = {
   canvasModel: CanvasModel;
   existing?: DiagramComponent[];
   onAdd?: (c: DiagramComponent) => void;
+  selected?: any;
+  onUpdateComponent?: (id: string, patch: Partial<any>) => void;
+  onUpdateAssociation?: (assoc: DiagramAssociation) => void;
 };
 
-export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd }) => {
+export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, selected, onUpdateComponent, onUpdateAssociation }) => {
   const [name, setName] = useState("Actor");
   const [mode, setMode] = useState<"actor" | "usecase" | "assoc">("actor");
   const [assocType, setAssocType] = useState<UseCaseAssocType>("includes");
@@ -118,6 +122,72 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd }
 
       {mode === "actor" && <button onClick={onAddActor} style={{ padding: "8px 12px", width: "100%" }}>Add Actor</button>}
       {mode === "usecase" && <button onClick={onAddUseCase} style={{ padding: "8px 12px", width: "100%" }}>Add Use Case</button>}
+
+      {/* Selection editor */}
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed #eee" }}>
+        <h4 style={{ margin: "6px 0" }}>Selection</h4>
+        {!selected || selected.kind === null ? (
+          <div style={{ fontSize: 12, color: "#444" }}>
+            <em>Click a component or association on the canvas to edit.</em>
+          </div>
+          ) : selected.kind === "component" ? (
+            (() => {
+              const comp = selected.component as any;
+              // uncontrolled inputs using refs for simplicity
+              const nameRef = React.createRef<HTMLInputElement>();
+              const xRef = React.createRef<HTMLInputElement>();
+              const yRef = React.createRef<HTMLInputElement>();
+              return (
+                <div>
+                  <label style={{ display: "block", fontSize: 12 }}>Name</label>
+                  <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 12 }}>X</label>
+                      <input type="number" defaultValue={comp?.x ?? 0} ref={xRef} style={{ width: "100%", padding: 6 }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 12 }}>Y</label>
+                      <input type="number" defaultValue={comp?.y ?? 0} ref={yRef} style={{ width: "100%", padding: 6 }} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={() => {
+                      const newName = nameRef.current ? nameRef.current.value : comp?.name;
+                      const nx = xRef.current ? Number(xRef.current.value) : comp?.x;
+                      const ny = yRef.current ? Number(yRef.current.value) : comp?.y;
+                      onUpdateComponent && onUpdateComponent((comp as any).id, { name: newName, x: nx, y: ny });
+                    }} style={{ flex: 1 }}>Save</button>
+                  </div>
+                </div>
+              );
+            })()
+          ) : selected.kind === "association" ? (
+            (() => {
+              const assoc = selected.association as any;
+              const labelRef = React.createRef<HTMLInputElement>();
+              const onAddCP = () => {
+                const src = existing.find((c: any) => (c as any).id === (assoc as any).source?.id);
+                const tgt = existing.find((c: any) => (c as any).id === (assoc as any).target?.id);
+                if (!src || !tgt) return;
+                const mx = ((src as any).x + (tgt as any).x) / 2;
+                const my = ((src as any).y + (tgt as any).y) / 2;
+                assoc.addControlPoint({ x: mx + 20, y: my + 20 });
+                if (onUpdateAssociation) onUpdateAssociation(assoc as DiagramAssociation);
+              };
+              return (
+                <div>
+                  <label style={{ display: "block", fontSize: 12 }}>Label</label>
+                  <input defaultValue={assoc?.name ?? ""} ref={labelRef} style={{ width: "100%", padding: 6 }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={() => { assoc.name = labelRef.current ? labelRef.current.value : assoc.name; if (onUpdateAssociation) onUpdateAssociation(assoc as DiagramAssociation); }} style={{ flex: 1 }}>Save</button>
+                    <button onClick={onAddCP} style={{ flex: 1 }}>Add control point</button>
+                  </div>
+                </div>
+              );
+            })()
+          ) : null}
+      </div>
     </div>
   );
 };

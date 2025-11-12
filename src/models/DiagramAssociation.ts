@@ -20,12 +20,18 @@ export abstract class DiagramAssociation {
   name?: string;
   source: DiagramComponent;
   target: DiagramComponent;
+  // optional perpendicular offset (in world units) applied to the routed line
+  offset?: number;
+  // optional intermediate control points (world coordinates) to allow manual routing
+  controlPoints?: { x: number; y: number }[];
 
-  constructor(source: DiagramComponent, target: DiagramComponent, name?: string) {
+  constructor(source: DiagramComponent, target: DiagramComponent, name?: string, offset?: number) {
     this.id = (typeof crypto !== "undefined" && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 9);
     this.source = source;
     this.target = target;
     this.name = name;
+    this.offset = offset;
+    this.controlPoints = [];
   }
 
   getCenterOf(rect: { x: number; y: number; width: number; height: number }) {
@@ -79,43 +85,82 @@ export abstract class DiagramAssociation {
     const sa = this.getSourceAnchor();
     const ta = this.getTargetAnchor();
 
-    const sx = sa.x * scale;
-    const sy = sa.y * scale;
-    const tx = ta.x * scale;
-    const ty = ta.y * scale;
+    // build the polyline in world coordinates: source anchor -> controlPoints -> target anchor
+    const pts: { x: number; y: number }[] = [sa];
+    if (Array.isArray(this.controlPoints) && this.controlPoints.length > 0) pts.push(...this.controlPoints);
+    pts.push(ta);
+
+    // optionally shift the whole polyline perpendicular to the main edge by `offset`
+    let perp = { x: 0, y: 0 };
+    if (this.offset && Math.abs(this.offset) > 0.0001) {
+      const dx = ta.x - sa.x;
+      const dy = ta.y - sa.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const px = -dy / len; // perp unit
+      const py = dx / len;
+      perp = { x: px * this.offset, y: py * this.offset };
+    }
+
+    const screenPts = pts.map((p) => ({ x: (p.x + perp.x) * scale, y: (p.y + perp.y) * scale }));
 
     ctx.save();
     ctx.strokeStyle = "#333";
     ctx.fillStyle = "#333";
     ctx.lineWidth = Math.max(1, 2 * (scale || 1));
     ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(tx, ty);
+    ctx.moveTo(screenPts[0].x, screenPts[0].y);
+    for (let i = 1; i < screenPts.length; i++) ctx.lineTo(screenPts[i].x, screenPts[i].y);
     ctx.stroke();
 
-    // draw arrowhead at target
-    const ang = Math.atan2(ty - sy, tx - sx);
-    const ah = 8 * (scale || 1); // arrow size in pixels
-    ctx.beginPath();
-    ctx.moveTo(tx, ty);
-    ctx.lineTo(tx - ah * Math.cos(ang - Math.PI / 6), ty - ah * Math.sin(ang - Math.PI / 6));
-    ctx.lineTo(tx - ah * Math.cos(ang + Math.PI / 6), ty - ah * Math.sin(ang + Math.PI / 6));
-    ctx.closePath();
-    ctx.fill();
+    // draw arrowhead at target (use last two screen pts to compute angle)
+    if (screenPts.length >= 2) {
+      const sP = screenPts[screenPts.length - 2];
+      const tP = screenPts[screenPts.length - 1];
+      const ang = Math.atan2(tP.y - sP.y, tP.x - sP.x);
+      const ah = 8 * (scale || 1); // arrow size in pixels
+      ctx.beginPath();
+      ctx.moveTo(tP.x, tP.y);
+      ctx.lineTo(tP.x - ah * Math.cos(ang - Math.PI / 6), tP.y - ah * Math.sin(ang - Math.PI / 6));
+      ctx.lineTo(tP.x - ah * Math.cos(ang + Math.PI / 6), tP.y - ah * Math.sin(ang + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
 
     // label (if provided) — draw near midpoint with a small background
     if (this.name) {
-      const mx = (sx + tx) / 2;
-      const my = (sy + ty) / 2;
+      // compute midpoint along the polyline (in screen space) for label placement
+      let totalLen = 0;
+      for (let i = 1; i < screenPts.length; i++) {
+        const dx = screenPts[i].x - screenPts[i - 1].x;
+        const dy = screenPts[i].y - screenPts[i - 1].y;
+        totalLen += Math.sqrt(dx * dx + dy * dy);
+      }
+      let acc = 0;
+      let mid = { x: screenPts[0].x, y: screenPts[0].y };
+      const targetLen = totalLen / 2;
+      for (let i = 1; i < screenPts.length; i++) {
+        const a = screenPts[i - 1];
+        const b = screenPts[i];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const segLen = Math.sqrt(dx * dx + dy * dy);
+        if (acc + segLen >= targetLen) {
+          const remain = targetLen - acc;
+          const t = remain / segLen;
+          mid = { x: a.x + dx * t, y: a.y + dy * t };
+          break;
+        }
+        acc += segLen;
+      }
       const padding = 6 * (scale || 1);
       ctx.font = `${12 * (scale || 1)}px sans-serif`;
       ctx.textBaseline = "middle";
       const text = this.name;
       const w = ctx.measureText(text).width;
       ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fillRect(mx - w / 2 - padding / 2, my - 10 * (scale || 1) / 2 - padding / 2, w + padding, 10 * (scale || 1) + padding / 2);
+      ctx.fillRect(mid.x - w / 2 - padding / 2, mid.y - 10 * (scale || 1) / 2 - padding / 2, w + padding, 10 * (scale || 1) + padding / 2);
       ctx.fillStyle = "#111";
-      ctx.fillText(text, mx - w / 2 + w / 2, my);
+      ctx.fillText(text, mid.x, mid.y);
     }
 
     ctx.restore();
@@ -128,6 +173,9 @@ export abstract class DiagramAssociation {
       name: this.name,
       sourceId: (this.source as any).id,
       targetId: (this.target as any).id,
+      // include optional offset so routing can be restored
+      ...(this.offset !== undefined ? { offset: this.offset } : {}),
+      ...(this.controlPoints && this.controlPoints.length ? { controlPoints: this.controlPoints } : {}),
     };
   }
 
@@ -135,16 +183,66 @@ export abstract class DiagramAssociation {
    * Helper to revive associations from JSON. `resolver` must map a component id
    * to a live DiagramComponent instance.
    */
-  static reviveFromJSON(json: AssociationJSON, resolver: (id: string) => DiagramComponent | undefined): DiagramAssociation | null {
+  static reviveFromJSON(json: AssociationJSON & { offset?: number; controlPoints?: { x: number; y: number }[] }, resolver: (id: string) => DiagramComponent | undefined): DiagramAssociation | null {
     const src = resolver(json.sourceId);
     const tgt = resolver(json.targetId);
     if (!src || !tgt) return null;
     // The base class is abstract; callers should instantiate concrete subclasses.
     // Here we return a minimal anonymous subclass instance that uses base drawing.
     class _Assoc extends DiagramAssociation {}
-    const a = new _Assoc(src, tgt, json.name);
+    const a = new _Assoc(src, tgt, json.name, json.offset);
     a.id = json.id;
+    if (json.controlPoints) a.controlPoints = json.controlPoints;
     return a;
+  }
+
+  // distance from point to segment in world units
+  private static _pointToSegmentDistance(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const l2 = dx * dx + dy * dy;
+    if (l2 === 0) return Math.hypot(px - ax, py - ay);
+    let t = ((px - ax) * dx + (py - ay) * dy) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const projx = ax + t * dx;
+    const projy = ay + t * dy;
+    return Math.hypot(px - projx, py - projy);
+  }
+
+  /**
+   * Hit-test point (world coords) against the polyline of this association.
+   * tolerance is in world units.
+   */
+  containsPoint(pt: { x: number; y: number }, tolerance = 6 / 1) {
+    const sa = this.getSourceAnchor();
+    const ta = this.getTargetAnchor();
+    const pts: { x: number; y: number }[] = [sa];
+    if (Array.isArray(this.controlPoints) && this.controlPoints.length) pts.push(...this.controlPoints);
+    pts.push(ta);
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      const d = DiagramAssociation._pointToSegmentDistance(pt.x, pt.y, a.x, a.y, b.x, b.y);
+      if (d <= tolerance) return true;
+    }
+    return false;
+  }
+
+  addControlPoint(p: { x: number; y: number }) {
+    if (!this.controlPoints) this.controlPoints = [];
+    this.controlPoints.push(p);
+  }
+
+  moveControlPoint(index: number, p: { x: number; y: number }) {
+    if (!this.controlPoints) return;
+    if (index < 0 || index >= this.controlPoints.length) return;
+    this.controlPoints[index] = p;
+  }
+
+  removeControlPoint(index: number) {
+    if (!this.controlPoints) return;
+    if (index < 0 || index >= this.controlPoints.length) return;
+    this.controlPoints.splice(index, 1);
   }
 }
 
