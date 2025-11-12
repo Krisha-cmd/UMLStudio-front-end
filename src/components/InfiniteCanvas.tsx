@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AiOutlineZoomIn, AiOutlineZoomOut, AiOutlineReload, AiOutlineDrag } from "react-icons/ai";
 import { CanvasModel } from "../models/CanvasModel";
+import { DiagramComponent } from "../models/DiagramComponent";
+import { ComponentRenderer } from "./ComponentRenderer";
 
 type Props = {
   model?: CanvasModel;
@@ -8,6 +10,7 @@ type Props = {
   majorEvery?: number;
   background?: string;
   showControls?: boolean;
+  components?: DiagramComponent[];
 };
 
 const styles: { [k: string]: React.CSSProperties } = {
@@ -39,12 +42,18 @@ const styles: { [k: string]: React.CSSProperties } = {
   },
 };
 
-export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, background = "#ffffff", showControls = true }) => {
+export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, background = "#ffffff", showControls = true, components }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const modelRef = useRef<CanvasModel>(model ?? new CanvasModel({ cellSize, majorEvery }));
+  const propsRef = useRef<{ components?: DiagramComponent[] }>({ components: undefined });
   const dragging = useRef(false);
   const last = useRef({ x: 0, y: 0 });
   const [, setTick] = useState(0);
+
+  // keep components prop in a ref for the render loop
+  useEffect(() => {
+    propsRef.current.components = components;
+  }, [components]);
 
   useEffect(() => {
     const cvs = canvasRef.current;
@@ -119,6 +128,23 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       ctx.save();
       ctx.scale(dpr, dpr);
       drawGrid(ctx);
+      // render components if provided via propsRef
+      const comps = propsRef.current.components as DiagramComponent[] | undefined;
+      if (Array.isArray(comps) && comps.length > 0) {
+        // Translate the context by the canvas offsets so component.draw can work in world coordinates
+        ctx.save();
+        const m = modelRef.current;
+        ctx.translate(m.offsetX, m.offsetY);
+        const renderer = new ComponentRenderer(ctx, m.scale);
+        for (const c of comps) {
+          try {
+            renderer.render(c as any);
+          } catch (err) {
+            // swallow render errors per-component
+          }
+        }
+        ctx.restore();
+      }
       ctx.restore();
     }
 
