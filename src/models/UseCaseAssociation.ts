@@ -24,11 +24,9 @@ export class UseCaseAssociation extends DiagramAssociation {
     ctx.save();
     ctx.strokeStyle = "#333";
     ctx.lineWidth = Math.max(1, 2 * scale);
-    if (this.assocType === "includes") {
-      ctx.setLineDash([6 * scale, 6 * scale]);
-    } else {
-      ctx.setLineDash([]);
-    }
+
+    ctx.setLineDash([]);
+
     ctx.beginPath();
     ctx.moveTo(sx, sy);
     ctx.lineTo(tx, ty);
@@ -42,8 +40,7 @@ export class UseCaseAssociation extends DiagramAssociation {
     ctx.lineTo(tx - ah * Math.cos(ang - Math.PI / 6), ty - ah * Math.sin(ang - Math.PI / 6));
     ctx.lineTo(tx - ah * Math.cos(ang + Math.PI / 6), ty - ah * Math.sin(ang + Math.PI / 6));
     ctx.closePath();
-    if (this.assocType === "extends") ctx.fillStyle = "#333";
-    else ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = "#333";
     ctx.fill();
     ctx.stroke();
 
