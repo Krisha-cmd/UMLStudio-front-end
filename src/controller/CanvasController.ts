@@ -12,6 +12,7 @@ export class CanvasController {
   // Callbacks set by the host (EditorPage)
   onSelectionChange?: (sel: Selection) => void;
   onComponentMove?: (id: string, x: number, y: number) => void;
+  onComponentResize?: (id: string, width: number, height: number) => void;
   onAssociationUpdated?: (assoc: DiagramAssociation) => void;
 
   setSelection(sel: Selection) {
@@ -29,6 +30,14 @@ export class CanvasController {
 
   notifyComponentMove(id: string, x: number, y: number) {
     if (this.onComponentMove) this.onComponentMove(id, x, y);
+  }
+
+  notifyComponentResize(id: string, width: number, height: number) {
+    try {
+      // eslint-disable-next-line no-console
+      console.log("CanvasController: notifyComponentResize ->", id, width, height);
+    } catch {}
+    if (this.onComponentResize) this.onComponentResize(id, width, height);
   }
 
   notifyAssociationUpdated(assoc: DiagramAssociation) {

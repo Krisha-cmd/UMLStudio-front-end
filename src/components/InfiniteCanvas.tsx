@@ -52,7 +52,7 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
   const propsRef = useRef<{ components?: DiagramComponent[] }>({ components: undefined });
   const last = useRef({ x: 0, y: 0 });
   const [, setTick] = useState(0);
-  const draggingComponentRef = useRef<{ id?: string; offsetX?: number; offsetY?: number }>({});
+  const draggingComponentRef = useRef<{ id?: string; offsetX?: number; offsetY?: number; resizeHandle?: string; origX?: number; origY?: number; origW?: number; origH?: number }>({});
   const draggingControlRef = useRef<{ assocId?: string; cpIndex?: number }>({});
   const pendingInsertRef = useRef<{ assocId?: string; clickWorld?: { x: number; y: number }; activated?: boolean }>({});
   const isPanningRef = useRef(false);
@@ -172,7 +172,7 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
             // swallow render errors per-component
           }
         }
-        // highlight selected component
+        // highlight selected component and draw resize handles
         try {
           if (controller && (controller as any).selected && (controller as any).selected.kind === "component") {
             const selId = (controller as any).selected.id;
@@ -183,6 +183,25 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
               ctx.strokeStyle = "#00c8ff";
               ctx.lineWidth = Math.max(2, 2 * m.scale);
               ctx.strokeRect(bb.x * m.scale, bb.y * m.scale, bb.width * m.scale, bb.height * m.scale);
+
+              // draw corner handles (in screen space)
+              const handles = [
+                { x: bb.x, y: bb.y, id: "nw" },
+                { x: bb.x + bb.width, y: bb.y, id: "ne" },
+                { x: bb.x, y: bb.y + bb.height, id: "sw" },
+                { x: bb.x + bb.width, y: bb.y + bb.height, id: "se" },
+              ];
+              const r = 6 * (m.scale || 1);
+              ctx.fillStyle = "#00c8ff";
+              for (const h of handles) {
+                ctx.beginPath();
+                ctx.rect(h.x * m.scale - r / 2, h.y * m.scale - r / 2, r, r);
+                ctx.fill();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "#003";
+                ctx.stroke();
+              }
+
               ctx.restore();
             }
           }
@@ -341,6 +360,40 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       last.current = { x: e.clientX, y: e.clientY };
 
       // first check control points of currently selected association
+      // check for resize handle on selected component
+      const selCompId = (controller && (controller as any).selected && (controller as any).selected.kind === "component") ? (controller as any).selected.id : null;
+      if (selCompId) {
+        const selComp = ((propsRef.current as any).components as DiagramComponent[] || []).find((x) => (x as any).id === selCompId) as any;
+        if (selComp) {
+          const bb = selComp.boundingBox();
+          // handle hit radius in world units
+          const hr = 12 / (modelRef.current.scale || 1);
+          const corners = [
+            { x: bb.x, y: bb.y, id: "nw" },
+            { x: bb.x + bb.width, y: bb.y, id: "ne" },
+            { x: bb.x, y: bb.y + bb.height, id: "sw" },
+            { x: bb.x + bb.width, y: bb.y + bb.height, id: "se" },
+          ];
+          for (const c of corners) {
+            const d = Math.hypot(c.x - world.x, c.y - world.y);
+            if (d <= hr) {
+              // begin resize
+              draggingComponentRef.current.id = selCompId;
+              draggingComponentRef.current.resizeHandle = c.id;
+              draggingComponentRef.current.origX = selComp.x;
+              draggingComponentRef.current.origY = selComp.y;
+              draggingComponentRef.current.origW = selComp.width;
+              draggingComponentRef.current.origH = selComp.height;
+              // store pointer start in world coords so delta calculations are stable
+              pendingInsertRef.current = pendingInsertRef.current || {};
+              (draggingComponentRef.current as any).startPointer = { x: world.x, y: world.y };
+              try { (e.target as Element).setPointerCapture(e.pointerId); } catch {}
+              (cvs as HTMLCanvasElement).style.cursor = "nwse-resize";
+              return;
+            }
+          }
+        }
+      }
       const selAssocId = (controller && (controller as any).selected && (controller as any).selected.kind === "association") ? (controller as any).selected.id : null;
       if (selAssocId) {
         const ass = ((propsRef.current as any).associations as DiagramAssociation[] || []).find((x) => (x as any).id === selAssocId);
@@ -406,6 +459,53 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
     function onPointerMove(e: PointerEvent) {
       const local = screenToLocal(e);
       const world = toWorld(local.x, local.y);
+
+      // If resizing a component
+      if (draggingComponentRef.current.resizeHandle && draggingComponentRef.current.id) {
+        const id = draggingComponentRef.current.id;
+        const comp = ((propsRef.current as any).components as DiagramComponent[] || []).find((x) => (x as any).id === id) as any;
+        if (comp) {
+          // compute delta relative to the pointer start (not the component origin) to avoid an initial jump
+          const start = (draggingComponentRef.current as any).startPointer || { x: (draggingComponentRef.current.origX ?? comp.x), y: (draggingComponentRef.current.origY ?? comp.y) };
+          const dhx = world.x - start.x;
+          const dhy = world.y - start.y;
+          let nx = comp.x;
+          let ny = comp.y;
+          let nw = comp.width;
+          let nh = comp.height;
+          const minSize = 40 / (modelRef.current.scale || 1);
+          const handle = draggingComponentRef.current.resizeHandle;
+          if (handle === "nw") {
+            // moving NW: origin moves by delta, size shrinks/expands opposite
+            nx = (draggingComponentRef.current.origX ?? comp.x) + dhx;
+            ny = (draggingComponentRef.current.origY ?? comp.y) + dhy;
+            nw = (draggingComponentRef.current.origW ?? comp.width) - dhx;
+            nh = (draggingComponentRef.current.origH ?? comp.height) - dhy;
+          } else if (handle === "ne") {
+            ny = (draggingComponentRef.current.origY ?? comp.y) + dhy;
+            nw = (draggingComponentRef.current.origW ?? comp.width) + dhx;
+            nh = (draggingComponentRef.current.origH ?? comp.height) - dhy;
+          } else if (handle === "sw") {
+            nx = (draggingComponentRef.current.origX ?? comp.x) + dhx;
+            nw = (draggingComponentRef.current.origW ?? comp.width) - dhx;
+            nh = (draggingComponentRef.current.origH ?? comp.height) + dhy;
+          } else if (handle === "se") {
+            nw = (draggingComponentRef.current.origW ?? comp.width) + dhx;
+            nh = (draggingComponentRef.current.origH ?? comp.height) + dhy;
+          }
+          // enforce min sizes
+          if (nw < minSize) nw = minSize;
+          if (nh < minSize) nh = minSize;
+          // apply
+          comp.x = nx;
+          comp.y = ny;
+          comp.width = nw;
+          comp.height = nh;
+          if (controller) controller.notifyComponentResize((comp as any).id, comp.width, comp.height);
+          setTick((t) => t + 1);
+        }
+        return;
+      }
 
       // if we have a pending insert and user has moved the pointer enough, create the control point and start dragging it
       if (pendingInsertRef.current.assocId && !pendingInsertRef.current.activated) {
@@ -482,6 +582,12 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       } catch {}
       draggingComponentRef.current.id = undefined;
       draggingComponentRef.current.offsetX = undefined;
+  draggingComponentRef.current.resizeHandle = undefined;
+  draggingComponentRef.current.origX = undefined;
+  draggingComponentRef.current.origY = undefined;
+  draggingComponentRef.current.origW = undefined;
+  draggingComponentRef.current.origH = undefined;
+  try { (draggingComponentRef.current as any).startPointer = undefined; } catch {}
       draggingComponentRef.current.offsetY = undefined;
       draggingControlRef.current.assocId = undefined;
       draggingControlRef.current.cpIndex = undefined;

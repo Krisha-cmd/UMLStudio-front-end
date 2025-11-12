@@ -6,6 +6,8 @@ import type { DiagramComponent } from "../models/DiagramComponent";
 import type DiagramAssociation from "../models/DiagramAssociation";
 import { UseCaseComponent } from "../models/UseCaseComponent";
 import type { UseCaseAssocType } from "../models/UseCaseAssociation";
+import SystemBoundary from "../models/SystemBoundary";
+import ClassComponent from "../models/ClassComponent";
 
 type Props = {
   canvasModel: CanvasModel;
@@ -18,7 +20,7 @@ type Props = {
 
 export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, selected, onUpdateComponent, onUpdateAssociation }) => {
   const [name, setName] = useState("Actor");
-  const [mode, setMode] = useState<"actor" | "usecase" | "assoc">("actor");
+  const [mode, setMode] = useState<"actor" | "usecase" | "assoc" | "system" | "class">("actor");
   const [assocType, setAssocType] = useState<UseCaseAssocType>("includes");
   const [assocSource, setAssocSource] = useState<string | null>(null);
   const [assocTarget, setAssocTarget] = useState<string | null>(null);
@@ -46,6 +48,28 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
     if (onAdd) onAdd(u);
   };
 
+  const onAddSystem = () => {
+    const spot = LayoutManager.findEmptySpot({
+      canvasModel,
+      existing: existing as DiagramComponent[],
+      desiredWidth: 600,
+      desiredHeight: 400,
+    });
+    const s = new SystemBoundary(name || "System", spot.x, spot.y);
+    if (onAdd) onAdd(s);
+  };
+
+  const onAddClass = () => {
+    const spot = LayoutManager.findEmptySpot({
+      canvasModel,
+      existing: existing as DiagramComponent[],
+      desiredWidth: 160,
+      desiredHeight: 120,
+    });
+    const c = new ClassComponent(name || "Class", spot.x, spot.y);
+    if (onAdd) onAdd(c);
+  };
+
   const resetAssocSelection = () => {
     setAssocSource(null);
     setAssocTarget(null);
@@ -62,13 +86,15 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
   };
 
   return (
-    <div style={{ width: 260, padding: 12, borderRight: "1px solid #eee", background: "#fafafa", height: "100vh" }}>
+    <div style={{ width: 400, padding: 12, borderRight: "1px solid #eee", background: "#fafafa", height: "100vh" }}>
       <h3 style={{ marginTop: 2 }}>Toolbox</h3>
       <div style={{ marginBottom: 8 }}>
         <label style={{ display: "block", fontSize: 12, color: "#333" }}>Mode</label>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setMode("actor")} style={{ flex: 1 }} disabled={mode === "actor"}>Actor</button>
           <button onClick={() => setMode("usecase")} style={{ flex: 1 }} disabled={mode === "usecase"}>Use Case</button>
+          <button onClick={() => setMode("class")} style={{ flex: 1 }} disabled={mode === "class"}>Class</button>
+          <button onClick={() => setMode("system")} style={{ flex: 1 }} disabled={mode === "system"}>System Boundary</button>
           <button onClick={() => setMode("assoc")} style={{ flex: 1 }} disabled={mode === "assoc"}>Association</button>
         </div>
       </div>
@@ -120,8 +146,10 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
         </div>
       )}
 
-      {mode === "actor" && <button onClick={onAddActor} style={{ padding: "8px 12px", width: "100%" }}>Add Actor</button>}
-      {mode === "usecase" && <button onClick={onAddUseCase} style={{ padding: "8px 12px", width: "100%" }}>Add Use Case</button>}
+  {mode === "actor" && <button onClick={onAddActor} style={{ padding: "8px 12px", width: "100%" }}>Add Actor</button>}
+  {mode === "usecase" && <button onClick={onAddUseCase} style={{ padding: "8px 12px", width: "100%" }}>Add Use Case</button>}
+  {mode === "system" && <button onClick={onAddSystem} style={{ padding: "8px 12px", width: "100%" }}>Add System Boundary</button>}
+  {mode === "class" && <button onClick={onAddClass} style={{ padding: "8px 12px", width: "100%" }}>Add Class</button>}
 
       {/* Selection editor */}
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed #eee" }}>
@@ -133,7 +161,112 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
           ) : selected.kind === "component" ? (
             (() => {
               const comp = selected.component as any;
-              // uncontrolled inputs using refs for simplicity
+              if (!comp) return null;
+              // class editor
+              if ((comp as any).type === "class") {
+                const nameRef = React.createRef<HTMLInputElement>();
+                const newAttrRef = React.createRef<HTMLInputElement>();
+                const newAttrVisRef = React.createRef<HTMLSelectElement>();
+                const newMethodRef = React.createRef<HTMLInputElement>();
+                const newMethodVisRef = React.createRef<HTMLSelectElement>();
+                const newMethodReturnRef = React.createRef<HTMLInputElement>();
+                return (
+                  <div>
+                    <label style={{ display: "block", fontSize: 12 }}>Class Name</label>
+                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                    <div style={{ marginTop: 8 }}>
+                      <h5 style={{ margin: "6px 0" }}>Attributes</h5>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <select ref={newAttrVisRef} defaultValue="+">
+                          <option value="+">+</option>
+                          <option value="-">-</option>
+                          <option value="*">*</option>
+                        </select>
+                        <input ref={newAttrRef} placeholder="name" style={{ flex: 1 }} />
+                        <button onClick={() => {
+                          const v = (newAttrVisRef.current?.value as any) ?? "+";
+                          const n = newAttrRef.current?.value ?? "";
+                          if (!n) return;
+                          const attrs = Array.isArray(comp.attributes) ? [...comp.attributes] : [];
+                          attrs.push({ visibility: v, name: n });
+                          onUpdateComponent && onUpdateComponent((comp as any).id, { attributes: attrs });
+                          if (newAttrRef.current) newAttrRef.current.value = "";
+                        }}>Add</button>
+                      </div>
+                      <ul style={{ marginTop: 8 }}>
+                        {(comp.attributes || []).map((a: any, idx: number) => (
+                          <li key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <span style={{ minWidth: 36 }}>{a.visibility}</span>
+                            <span style={{ flex: 1 }}>{a.name}</span>
+                            <button onClick={() => {
+                              const attrs = (comp.attributes || []).slice();
+                              attrs.splice(idx, 1);
+                              onUpdateComponent && onUpdateComponent((comp as any).id, { attributes: attrs });
+                            }}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <h5 style={{ marginTop: 12 }}>Methods</h5>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <select ref={newMethodVisRef} defaultValue="+">
+                          <option value="+">+</option>
+                          <option value="-">-</option>
+                          <option value="*">*</option>
+                        </select>
+                        <input ref={newMethodRef} placeholder="name" style={{ flex: 1 }} />
+                        <input ref={newMethodReturnRef} placeholder="returnType" style={{ width: 100 }} />
+                        <button onClick={() => {
+                          const v = (newMethodVisRef.current?.value as any) ?? "+";
+                          const n = newMethodRef.current?.value ?? "";
+                          const r = newMethodReturnRef.current?.value ?? undefined;
+                          if (!n) return;
+                          const methods = Array.isArray(comp.methods) ? [...comp.methods] : [];
+                          methods.push({ visibility: v, name: n, params: [], returnType: r });
+                          onUpdateComponent && onUpdateComponent((comp as any).id, { methods });
+                          if (newMethodRef.current) newMethodRef.current.value = "";
+                          if (newMethodReturnRef.current) newMethodReturnRef.current.value = "";
+                        }}>Add</button>
+                      </div>
+                      <ul style={{ marginTop: 8 }}>
+                        {(comp.methods || []).map((m: any, idx: number) => (
+                          <li key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <span style={{ minWidth: 36 }}>{m.visibility}</span>
+                            <span style={{ flex: 1 }}>{m.name}()</span>
+                            <button onClick={() => {
+                              const methods = (comp.methods || []).slice();
+                              methods.splice(idx, 1);
+                              onUpdateComponent && onUpdateComponent((comp as any).id, { methods });
+                            }}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button onClick={() => {
+                          const newName = nameRef.current ? nameRef.current.value : comp?.name;
+                          onUpdateComponent && onUpdateComponent((comp as any).id, { name: newName });
+                        }} style={{ flex: 1 }}>Save</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // system-boundary editor
+              if ((comp as any).type === "system-boundary") {
+                const nameRef = React.createRef<HTMLInputElement>();
+                return (
+                  <div>
+                    <label style={{ display: "block", fontSize: 12 }}>Name</label>
+                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => { const newName = nameRef.current ? nameRef.current.value : comp?.name; onUpdateComponent && onUpdateComponent((comp as any).id, { name: newName }); }} style={{ flex: 1 }}>Save</button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // generic component editor fallback
               const nameRef = React.createRef<HTMLInputElement>();
               const xRef = React.createRef<HTMLInputElement>();
               const yRef = React.createRef<HTMLInputElement>();

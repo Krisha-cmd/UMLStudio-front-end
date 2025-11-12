@@ -38,6 +38,18 @@ export const EditorPage: React.FC = () => {
       return [...prev];
     });
   };
+  controller.onComponentResize = (id: string, width: number, height: number) => {
+    setComponents((prev) => {
+      const next = prev.map((c) => {
+        if ((c as any).id === id) {
+          (c as any).width = width;
+          (c as any).height = height;
+        }
+        return c;
+      });
+      return [...next];
+    });
+  };
   controller.onAssociationUpdated = (assoc) => {
     // debug: log the incoming association update
     try {
