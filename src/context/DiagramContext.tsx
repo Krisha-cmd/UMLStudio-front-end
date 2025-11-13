@@ -105,7 +105,12 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
             if (curId) {
               const cur = DiagramSession.loadById(curId);
               if (cur) {
-                cur.diagramJSON = provided;
+                // merge provided snapshot into current session, but preserve existing diagram type
+                const existingJSON = cur.diagramJSON ?? {};
+                const merged = Object.assign({}, existingJSON, provided ?? {});
+                // ensure we don't accidentally overwrite an existing type with an empty/undefined one
+                if (existingJSON.type) merged.type = existingJSON.type;
+                cur.diagramJSON = merged;
                 cur.touch();
                 cur.saveToLocalStorage();
                 setSessions((prev) => {
@@ -137,7 +142,13 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const cs = currentSession;
     if (!cs) return;
     if (patch.name !== undefined) cs.name = patch.name;
-    if (patch.diagramJSON !== undefined) cs.diagramJSON = patch.diagramJSON;
+    if (patch.diagramJSON !== undefined) {
+      // merge incoming JSON with existing to avoid losing established properties like `type`
+      const existingJSON = cs.diagramJSON ?? {};
+      const merged = Object.assign({}, existingJSON, patch.diagramJSON ?? {});
+      if (existingJSON.type) merged.type = existingJSON.type;
+      cs.diagramJSON = merged;
+    }
     cs.touch();
     cs.saveToLocalStorage();
     setSessions((prev) => {

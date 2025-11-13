@@ -241,7 +241,18 @@ const RightPanel: React.FC = () => {
                             <div className="uml-diagram-section">Components</div>
                             <div className="uml-diagram-list">
                               {(d as any).diagramJSON.components.map((c: any, i: number) => (
-                                <div key={i} className="uml-diagram-child-row component">
+                                <div key={i} className="uml-diagram-child-row component" style={{ cursor: 'pointer' }} onClick={() => {
+                                  try {
+                                    // if this diagram isn't open, open it first then select
+                                    if (diagCtx.currentSession?.id !== (d as any).id) {
+                                      diagCtx.openSessionById((d as any).id);
+                                      // dispatch selection after a short delay to allow editor to revive
+                                      setTimeout(() => window.dispatchEvent(new CustomEvent('uml:select', { detail: { kind: 'component', id: c?.id, diagramId: (d as any).id } })), 220);
+                                    } else {
+                                      window.dispatchEvent(new CustomEvent('uml:select', { detail: { kind: 'component', id: c?.id, diagramId: (d as any).id } }));
+                                    }
+                                  } catch (err) {}
+                                }}>
                                   <span className="uml-icon small">{IconFor("component")}</span>
                                   <div className="uml-diagram-child-title">
                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -250,7 +261,7 @@ const RightPanel: React.FC = () => {
                                     </div>
                                   </div>
                                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                                    <button title="Delete component" onClick={() => setItemDeleteTarget({ diagramId: (d as any).id, kind: 'component', id: c?.id, name: c?.name })} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
+                                    <button title="Delete component" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'component', id: c?.id, name: c?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
                                   </div>
                                 </div>
                               ))}
@@ -275,7 +286,16 @@ const RightPanel: React.FC = () => {
                                 const tgtName = resolveName(a?.targetId ?? a?.target ?? a?.target?.id);
                                 const assocTypeLabel = a?.assocType ?? a?.kind ?? a?.type ?? a?.name ?? '';
                                 return (
-                                  <div key={i} className="uml-diagram-child-row association">
+                                  <div key={i} className="uml-diagram-child-row association" style={{ cursor: 'pointer' }} onClick={() => {
+                                    try {
+                                      if (diagCtx.currentSession?.id !== (d as any).id) {
+                                        diagCtx.openSessionById((d as any).id);
+                                        setTimeout(() => window.dispatchEvent(new CustomEvent('uml:select', { detail: { kind: 'association', id: a?.id, diagramId: (d as any).id } })), 220);
+                                      } else {
+                                        window.dispatchEvent(new CustomEvent('uml:select', { detail: { kind: 'association', id: a?.id, diagramId: (d as any).id } }));
+                                      }
+                                    } catch (err) {}
+                                  }}>
                                     <span className="uml-icon small">{IconFor("association")}</span>
                                     <div className="uml-diagram-child-title" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -285,7 +305,7 @@ const RightPanel: React.FC = () => {
                                       <div style={{ fontSize: 12, color: '#cfeff3' }}>{srcName} → {tgtName}</div>
                                     </div>
                                     <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                                      <button title="Delete association" onClick={() => setItemDeleteTarget({ diagramId: (d as any).id, kind: 'association', id: a?.id, name: a?.name })} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
+                                      <button title="Delete association" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'association', id: a?.id, name: a?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
                                     </div>
                                   </div>
                                 );

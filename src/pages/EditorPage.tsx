@@ -209,7 +209,13 @@ export const EditorPage: React.FC = () => {
       try {
         const detail = (ev as CustomEvent).detail ?? {};
         const requestId = detail.requestId;
-        const diagramJSON = { components: components.map((c) => (c as any).toJSON ? (c as any).toJSON() : (c as any)), associations: associations.map((a) => (a as any).toJSON ? (a as any).toJSON() : (a as any)) };
+        // include diagram type when replying so DiagramContext doesn't lose it
+        const diagramType = diagCtx.currentSession?.diagramJSON?.type ?? diagCtx.currentSession?.diagramJSON?.type ?? undefined;
+        const diagramJSON = {
+          components: components.map((c) => (c as any).toJSON ? (c as any).toJSON() : (c as any)),
+          associations: associations.map((a) => (a as any).toJSON ? (a as any).toJSON() : (a as any)),
+          ...(diagramType ? { type: diagramType } : {}),
+        };
         window.dispatchEvent(new CustomEvent("uml:reply-save", { detail: { requestId, diagramJSON } }));
       } catch (err) {
         try { window.dispatchEvent(new CustomEvent("uml:reply-save", { detail: { requestId: (ev as any)?.detail?.requestId, diagramJSON: null } })); } catch {}
@@ -218,6 +224,56 @@ export const EditorPage: React.FC = () => {
     window.addEventListener("uml:request-save", onRequest as EventListener);
     return () => window.removeEventListener("uml:request-save", onRequest as EventListener);
   }, [components, associations]);
+
+  // Listen for selection requests from other UI (RightPanel) and map them to
+  // the canonical runtime instances in the canvas controller.
+  useEffect(() => {
+    let cancelled = false;
+    const trySelect = (kind: string, id: string | undefined, attemptsLeft = 8) => {
+      if (cancelled) return;
+      if (!id) return;
+      // find component or association in current runtime arrays
+      if (kind === 'component') {
+        const comp = components.find((c) => (c as any).id === id);
+        if (comp) {
+          controller.setSelection({ kind: 'component', id, component: comp as any });
+          return;
+        }
+      } else if (kind === 'association') {
+        const assoc = associations.find((a) => (a as any).id === id);
+        if (assoc) {
+          controller.setSelection({ kind: 'association', id, association: assoc as any });
+          return;
+        }
+      }
+      // if not found but the editor is currently loading or we still have attempts,
+      // retry after a short delay to allow revive to finish.
+      if (attemptsLeft > 0) {
+        setTimeout(() => trySelect(kind, id, attemptsLeft - 1), 150);
+      }
+    };
+
+    const onSelect = (ev: Event) => {
+      try {
+        const detail = (ev as CustomEvent).detail ?? {};
+        const { kind, id, diagramId } = detail;
+        // If a different diagram is requested, open it first and then select.
+        if (diagramId && diagCtx.currentSession?.id !== diagramId) {
+          diagCtx.openSessionById(diagramId);
+          // give editor a moment to revive the session, then attempt selection
+          setTimeout(() => trySelect(kind, id), 220);
+        } else {
+          trySelect(kind, id);
+        }
+      } catch (err) {}
+    };
+
+    window.addEventListener('uml:select', onSelect as EventListener);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('uml:select', onSelect as EventListener);
+    };
+  }, [components, associations, controller, diagCtx]);
 
   // Keep the DiagramContext's current session JSON updated when components/associations change.
   useEffect(() => {
