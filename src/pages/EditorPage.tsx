@@ -101,12 +101,16 @@ export const EditorPage: React.FC = () => {
             const ctRaw = anyc.cardinalityTarget;
             const cs = csRaw !== undefined && csRaw !== null && csRaw !== "" ? Number(csRaw) : undefined;
             const ct = ctRaw !== undefined && ctRaw !== null && ctRaw !== "" ? Number(ctRaw) : undefined;
-            // If realization, ensure source is interface
-            if ((anyc.classAssocKind === "realization") && ((src as any).type !== "interface")) {
-              try {
-                // eslint-disable-next-line no-alert
-                alert("Realization associations require an Interface as the source. Please select an Interface component as the source.");
-              } catch {}
+            // If realization, ensure it's Class (source) -> Interface (target)
+            if (anyc.classAssocKind === "realization") {
+              if ((src as any).type !== "class" || (tgt as any).type !== "interface") {
+                try {
+                  // eslint-disable-next-line no-alert
+                  alert("Realization associations should be from a Class (source) to an Interface (target). Please select a Class as source and an Interface as target.");
+                } catch {}
+              } else {
+                assoc = new ClassAssociation(src, tgt, "realization", anyc.assocName, cs, ct);
+              }
             } else {
               assoc = new ClassAssociation(src, tgt, anyc.classAssocKind ?? "association", anyc.assocName, cs, ct);
             }

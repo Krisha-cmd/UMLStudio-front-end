@@ -229,8 +229,8 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
       {diagType === "ClassDiagram" && (
         <>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ display: "block", fontSize: 12, color: "#333" }}>Name</label>
-            <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
+            <label style={{ display: "block", fontSize: 16,marginBottom: 6, color: "#00e5ff8c" }}>Name</label>
+            <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)', color: '#6365f1f0' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button onClick={onAddClass} style={{ flex: 1 }}>Add Class</button>
@@ -238,8 +238,8 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
           </div>
           <div style={{ height: 12 }} />
           <div style={{ marginBottom: 8, display:'flex',flexDirection:'column' }}>
-            <label style={{ display: "block", fontSize: 12, color: "#333" }}>Class associations</label>
-            <select value={classAssocKind} onChange={(e) => setClassAssocKind(e.target.value as any)} style={{ width: "100%", padding: 8 }}>
+            <label style={{ display: "block", fontSize: 12, color: "#00e5ff", marginBottom: 2 }}>Class associations</label>
+            <select value={classAssocKind} onChange={(e) => setClassAssocKind(e.target.value as any)} style={{ width: "100%", padding: 8 , border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
               <option value="association">association</option>
               <option value="aggregation">aggregation</option>
               <option value="composition">composition</option>
@@ -248,7 +248,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
             </select>
             <div style={{ marginTop: 8 }}>
               <label style={{ display: "block", fontSize: 12 }}>Name (optional)</label>
-              <input value={assocNameField} onChange={(e) => setAssocNameField(e.target.value)} style={{ width: "100%", padding: 8 }} />
+              <input value={assocNameField} onChange={(e) => setAssocNameField(e.target.value)} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)', color: '#6365f1f0' }} />
             </div>
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>
@@ -306,7 +306,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
       {!diagType && (
         <>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ display: "block", fontSize: 12, color: "#333" }}>Name</label>
+            <label style={{ display: "block", fontSize: 16, color: "#00e5ff8c" }}>Name</label>
             <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
@@ -338,16 +338,16 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
                 return (
                   <div>
                     <label style={{ display: "block", fontSize: 12 }}>Class Name</label>
-                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 , background: 'rgba(0,0,0,0.18)', color: '#00e5ff', border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6 }} />
                     <div style={{ marginTop: 8 }}>
                       <h5 style={{ margin: "6px 0" }}>Attributes</h5>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <select ref={newAttrVisRef} defaultValue="+">
+                                <select ref={newAttrVisRef} defaultValue="+">
                           <option value="+">+</option>
                           <option value="-">-</option>
                           <option value="*">*</option>
                         </select>
-                        <input ref={newAttrRef} placeholder="name" style={{ flex: 1 }} />
+                                <input ref={newAttrRef} placeholder="name" style={{ flex: 1, padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' }} />
                         <button onClick={() => {
                           const v = (newAttrVisRef.current?.value as any) ?? "+";
                           const n = newAttrRef.current?.value ?? "";
@@ -373,14 +373,14 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
                       </ul>
 
                       <h5 style={{ marginTop: 12 }}>Methods</h5>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ display: "flex", gap: 8 , minWidth:100}}>
                         <select ref={newMethodVisRef} defaultValue="+">
                           <option value="+">+</option>
                           <option value="-">-</option>
                           <option value="*">*</option>
                         </select>
-                        <input ref={newMethodRef} placeholder="name" style={{ flex: 1 }} />
-                        <input ref={newMethodReturnRef} placeholder="returnType" style={{ width: 100 }} />
+                        <input ref={newMethodRef} placeholder="name" style={{ flex: 1, padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' , minWidth:10}} />
+                        <input ref={newMethodReturnRef} placeholder="returnType" style={{ width: 100, padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff', minWidth:10 }} />
                         <button onClick={() => {
                           const v = (newMethodVisRef.current?.value as any) ?? "+";
                           const n = newMethodRef.current?.value ?? "";
@@ -423,7 +423,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
                 return (
                   <div>
                     <label style={{ display: "block", fontSize: 12 }}>Name</label>
-                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                    <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' }} />
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                       <button onClick={() => { const newName = nameRef.current ? nameRef.current.value : comp?.name; onUpdateComponent && onUpdateComponent((comp as any).id, { name: newName }); }} style={{ flex: 1 }}>Save</button>
                     </div>
@@ -440,7 +440,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
               return (
                 <div>
                   <label style={{ display: "block", fontSize: 12 }}>Name</label>
-                  <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
+                  <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' }} />
                   <div style={{ marginTop: 8 }}>
                     <small style={{ color: '#666' }}>Position is read-only here — move the component on the canvas and click Save to persist its current location.</small>
                   </div>
@@ -466,7 +466,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
               return (
                 <div>
                   <label style={{ display: "block", fontSize: 12 }}>Label</label>
-                  <input defaultValue={assoc?.name ?? ""} ref={labelRef} style={{ width: "100%", padding: 6 }} />
+                  <input defaultValue={assoc?.name ?? ""} ref={labelRef} style={{ width: "100%", padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' }} />
                           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                             <button onClick={() => { assoc.name = labelRef.current ? labelRef.current.value : assoc.name; if (onUpdateAssociation) onUpdateAssociation(assoc as DiagramAssociation); }} style={{ flex: 1 }}>Save</button>
                           </div>

@@ -88,7 +88,7 @@ export default class Exporter {
           const my = (sy + ty) / 2;
           const labW = Math.min(160, Math.max(60, 80 * (scale || 1)));
           parts.push(`<rect x="${mx - labW/2}" y="${my - 12}" width="${labW}" height="24" fill="#fff" stroke="none" rx="4"/>`);
-          parts.push(`<text x="${mx}" y="${my + 5}" text-anchor="middle" font-family="sans-serif" font-size="${Math.max(10, 12 * scale)}" fill="#111">${escape(a.name)}</text>`);
+          parts.push(`<text x="${mx}" y="${my}" text-anchor="middle" font-family="sans-serif" font-size="${Math.max(10, 12 * scale)}" fill="#111" dominant-baseline="middle">${escape(a.name)}</text>`);
         }
         parts.push(`</g>`);
       } catch (err) { /* continue */ }
@@ -114,25 +114,45 @@ export default class Exporter {
           parts.push(`<line x1="${cx}" y1="${y + h * 0.6}" x2="${cx - w * 0.25}" y2="${y + h}"/>`);
           parts.push(`<line x1="${cx}" y1="${y + h * 0.6}" x2="${cx + w * 0.25}" y2="${y + h}"/>`);
           parts.push(`</g>`);
-          parts.push(`<text x="${cx}" y="${y + h + 16}" text-anchor="middle" font-family="monospace" font-size="12" fill="#111">${escape(c.name ?? "Actor")}</text>`);
+          parts.push(`<text x="${cx}" y="${y + h + 16}" text-anchor="middle" font-family="monospace" font-size="12" fill="#111" dominant-baseline="hanging">${escape(c.name ?? "Actor")}</text>`);
         } else if (type === "usecase") {
           const rx = w / 2;
           const ry = h / 2;
           parts.push(`<g stroke="#333" fill="#fff" stroke-width="2">`);
           parts.push(`<ellipse cx="${x + rx}" cy="${y + ry}" rx="${rx}" ry="${ry}" />`);
           parts.push(`</g>`);
-          parts.push(`<text x="${x + w / 2}" y="${y + h / 2 + 6}" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#111">${escape(c.name ?? "UseCase")}</text>`);
+          parts.push(`<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#111" dominant-baseline="middle">${escape(c.name ?? "UseCase")}</text>`);
         } else if (type === "class") {
-          parts.push(`<g stroke="#222" fill="#fff" stroke-width="2">`);
+          // draw class box with two separators (after name and before methods)
+          const pad = 8 * (scale || 1);
+          const nameH = 20 * (scale || 1);
+          parts.push(`<g stroke="#222" fill="#fff" stroke-width="${Math.max(1, 2 * scale)}">`);
           parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`);
           parts.push(`</g>`);
-          parts.push(`<text x="${x + 8}" y="${y + 20}" font-family="sans-serif" font-size="14" fill="#000">${escape(c.name ?? "Class")}</text>`);
+          // name (left aligned but inside padding)
+          parts.push(`<text x="${x + pad}" y="${y + pad + 2}" font-family="sans-serif" font-size="${14 * (scale || 1)}" fill="#000" dominant-baseline="hanging">${escape(c.name ?? "Class")}</text>`);
+          // separator after name (proportional)
+          const sep1Y = y + nameH;
+          parts.push(`<line x1="${x}" y1="${sep1Y}" x2="${x + w}" y2="${sep1Y}" stroke="#222" stroke-width="${Math.max(1, 1 * (scale || 1))}" />`);
           // attributes
-          let ay = y + 40;
+          let ay = y + nameH + pad;
           if (Array.isArray(c.attributes)) {
             for (const a of c.attributes) {
-              parts.push(`<text x="${x + 8}" y="${ay}" font-family="sans-serif" font-size="12" fill="#333">${escape((a.visibility || '') + ' ' + (a.name || ''))}</text>`);
-              ay += 16;
+              parts.push(`<text x="${x + pad}" y="${ay}" font-family="sans-serif" font-size="${12 * (scale || 1)}" fill="#333" dominant-baseline="hanging">${escape((a.visibility || '') + ' ' + (a.name || ''))}</text>`);
+              ay += 16 * (scale || 1);
+            }
+          }
+          // separator before methods - compute from bottom similar to runtime component
+          const sepY = y + h - Math.max(16 * (scale || 1), (Array.isArray(c.methods) ? c.methods.length : 0) * 16 * (scale || 1) + pad);
+          parts.push(`<line x1="${x}" y1="${sepY}" x2="${x + w}" y2="${sepY}" stroke="#222" stroke-width="${Math.max(1, 1 * (scale || 1))}" />`);
+          // methods
+          let my = sepY + pad;
+          if (Array.isArray(c.methods)) {
+            for (const m of c.methods) {
+              const params = Array.isArray(m.params) ? m.params.map((p: any) => `${p.name}${p.type ? ':' + p.type : ''}`).join(', ') : '';
+              const txt = `${m.visibility || ''} ${m.name || ''}(${params})${m.returnType ? ':' + m.returnType : ''}`;
+              parts.push(`<text x="${x + pad}" y="${my}" font-family="sans-serif" font-size="${12 * (scale || 1)}" fill="#333" dominant-baseline="hanging">${escape(txt)}</text>`);
+              my += 16 * (scale || 1);
             }
           }
         } else if (type === "system-boundary") {
@@ -140,6 +160,39 @@ export default class Exporter {
           parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`);
           parts.push(`</g>`);
           parts.push(`<text x="${x + 12}" y="${y + 20}" font-family="sans-serif" font-size="14" fill="#444">${escape(c.name ?? "System")}</text>`);
+        } else if (type === "interface") {
+          // interface: draw like class but put «interface» label centered at top
+          const pad = 8 * (scale || 1);
+          const nameH = 20 * (scale || 1);
+          parts.push(`<g stroke="#222" fill="#fff" stroke-width="${Math.max(1, 2 * scale)}">`);
+          parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`);
+          parts.push(`</g>`);
+          // separator after name
+          const sep1 = y + nameH;
+          parts.push(`<line x1="${x}" y1="${sep1}" x2="${x + w}" y2="${sep1}" stroke="#222" stroke-width="${Math.max(1, 1 * (scale || 1))}" />`);
+          // attributes/methods like class
+          let ay2 = y + nameH + pad;
+          // interface label centered (hanging baseline to match canvas)
+          parts.push(`<text x="${x + w / 2}" y="${y + pad}" text-anchor="middle" font-family="sans-serif" font-size="${10 * (scale || 1)}" fill="#333" dominant-baseline="hanging">${escape('\u00ABinterface\u00BB')}</text>`);
+          // name centered
+          parts.push(`<text x="${x + w / 2}" y="${y + pad + 14}" text-anchor="middle" font-family="sans-serif" font-size="${14 * (scale || 1)}" fill="#000" dominant-baseline="hanging">${escape(c.name ?? 'IExample')}</text>`);
+          if (Array.isArray(c.attributes)) {
+            for (const a of c.attributes) {
+              parts.push(`<text x="${x + pad}" y="${ay2}" font-family="sans-serif" font-size="${12 * (scale || 1)}" fill="#333" dominant-baseline="hanging">${escape((a.visibility || '') + ' ' + (a.name || ''))}</text>`);
+              ay2 += 16 * (scale || 1);
+            }
+          }
+          const sepY2 = y + h - Math.max(16 * (scale || 1), (Array.isArray(c.methods) ? c.methods.length : 0) * 16 * (scale || 1) + pad);
+          parts.push(`<line x1="${x}" y1="${sepY2}" x2="${x + w}" y2="${sepY2}" stroke="#222" stroke-width="${Math.max(1, 1 * (scale || 1))}" />`);
+          let my2 = sepY2 + pad;
+          if (Array.isArray(c.methods)) {
+            for (const m of c.methods) {
+              const params = Array.isArray(m.params) ? m.params.map((p: any) => `${p.name}${p.type ? ':' + p.type : ''}`).join(', ') : '';
+              const txt = `${m.visibility || ''} ${m.name || ''}(${params})${m.returnType ? ':' + m.returnType : ''}`;
+              parts.push(`<text x="${x + pad}" y="${my2}" font-family="sans-serif" font-size="${12 * (scale || 1)}" fill="#333" dominant-baseline="hanging">${escape(txt)}</text>`);
+              my2 += 16 * (scale || 1);
+            }
+          }
         } else {
           parts.push(`<g stroke="#666" fill="#fff" stroke-width="1">`);
           parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`);
@@ -235,10 +288,14 @@ export default class Exporter {
     if (!JSZip) { alert('Zip library not available'); return; }
     const zip = new JSZip();
 
+    let idx = 0;
     for (const raw of sessions) {
+      idx += 1;
       const s = raw && raw.diagramJSON ? raw.diagramJSON : (typeof raw.toJSON === 'function' ? raw.toJSON() : raw);
       const svg = Exporter.renderDiagramToSVG(s.diagramJSON ?? s, 1600, 900);
-      const fileName = `${((s.name ?? s.id ?? 'diagram') + '').replace(/[^a-z0-9-_]/gi, '_')}.svg`;
+      // ensure unique file names by appending index when necessary
+      const base = ((s.name ?? s.id ?? 'diagram') + '').replace(/[^a-z0-9-_]/gi, '_');
+      const fileName = `${base}_${idx}.svg`;
       zip.file(fileName, svg);
     }
 

@@ -23,17 +23,19 @@ export class InterfaceComponent extends ClassComponent {
     ctx.strokeRect(x, y, w, h);
 
     // <<interface>> label
-    ctx.fillStyle = "#333";
-    ctx.font = `${10 * scale}px sans-serif`;
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    const label = "\u00ABinterface\u00BB"; // «interface»
-    ctx.fillText(label, x + this.padding * scale, y + this.padding * scale);
+  // <<interface>> label - center top
+  ctx.fillStyle = "#333";
+  ctx.font = `${10 * scale}px sans-serif`;
+  ctx.textBaseline = "top";
+  ctx.textAlign = "center";
+  const label = "\u00ABinterface\u00BB"; // «interface»
+  ctx.fillText(label, x + w / 2, y + this.padding * scale);
 
-    // draw the rest like ClassComponent but offset the name a bit
-    ctx.font = `${14 * scale}px sans-serif`;
-    ctx.fillStyle = "#000";
-    ctx.fillText(this.name, x + this.padding * scale, y + (this.padding + 12) * scale);
+  // draw the rest like ClassComponent but center the name under the label
+  ctx.font = `${14 * scale}px sans-serif`;
+  ctx.fillStyle = "#000";
+  ctx.textAlign = "center";
+  ctx.fillText(this.name, x + w / 2, y + (this.padding + 12) * scale);
 
     // separator line after name (adjusted)
     const nameH = 30 * scale;
