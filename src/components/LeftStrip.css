@@ -1,0 +1,42 @@
+.uml-leftstrip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  background: transparent;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+}
+
+.uml-leftstrip-inner {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 6px;
+  align-items: center;
+}
+
+.ls-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ls-pdf { background: #d93025; color: #fff; }
+.ls-svg { background: #00c8ff; color: #000; }
+.ls-import { background: #fff; color: #000; }
+.ls-undo, .ls-redo { background: #777; color: #fff; border: 1px solid #00c8ff88; }
+.ls-save { background: #818cf8; color: #fff; }
+
+.ls-sep { height: 1px; width: 28px; background: rgba(255,255,255,0.04); margin: 6px 0; }
+.ls-spacer { flex: 1 1 auto; }
+
+.ls-btn svg { display: block; }

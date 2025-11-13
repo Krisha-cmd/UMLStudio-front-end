@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import InfiniteCanvas from "../components/InfiniteCanvas";
 import LeftPanel from "../components/LeftPanel";
+import LeftStrip from "../components/LeftStrip";
 import RightPanel from "../components/RightPanel";
 import { CanvasModel } from "../models/CanvasModel";
 import type { DiagramComponent } from "../models/DiagramComponent";
@@ -343,7 +344,8 @@ export const EditorPage: React.FC = () => {
 
   return (
     <>
-      <LeftPanel canvasModel={model} existing={components} onAdd={handleAdd} selected={selection} onUpdateComponent={(id, patch) => {
+  <LeftStrip />
+  <LeftPanel canvasModel={model} existing={components} onAdd={handleAdd} selected={selection} onUpdateComponent={(id, patch) => {
         setComponents((prev) => {
           const next = prev.map((c) => {
             if ((c as any).id === id) {
@@ -359,7 +361,7 @@ export const EditorPage: React.FC = () => {
 
       <RightPanel />
 
-      <div style={{ position: 'fixed', left: 'var(--left-panel-width,360px)', right: 'var(--right-panel-width,320px)', top: 0, bottom: 0, background: '#f7f7fb' }}>
+  <div style={{ position: 'fixed', left: `calc(var(--left-panel-width,360px) + 48px)`, right: 'var(--right-panel-width,320px)', top: 0, bottom: 0, background: '#f7f7fb' }}>
         <InfiniteCanvas model={model} background="#fff" showControls={true} components={components} associations={associations} controller={controller} />
       </div>
 

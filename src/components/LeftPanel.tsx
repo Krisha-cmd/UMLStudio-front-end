@@ -79,6 +79,8 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
 
     const actor = new ActorComponent(name || "Actor", spot.x, spot.y);
     if (onAdd) onAdd(actor);
+    // clear name and show placeholder
+    setName("");
   };
 
   const onAddUseCase = () => {
@@ -90,6 +92,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
     });
     const u = new UseCaseComponent(name || "UseCase", spot.x, spot.y);
     if (onAdd) onAdd(u);
+    setName("");
   };
 
   const onAddSystem = () => {
@@ -101,6 +104,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
     });
     const s = new SystemBoundary(name || "System", spot.x, spot.y);
     if (onAdd) onAdd(s);
+    setName("");
   };
 
   const onAddClass = () => {
@@ -112,6 +116,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
     });
     const c = new ClassComponent(name || "Class", spot.x, spot.y);
     if (onAdd) onAdd(c);
+    setName("");
   };
 
   const onAddInterface = () => {
@@ -123,6 +128,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
     });
     const i = new InterfaceComponent(name || "IInterface", spot.x, spot.y);
     if (onAdd) onAdd(i);
+    setName("");
   };
 
   const resetAssocSelection = () => {
@@ -138,6 +144,14 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
         return ({ __createAssoc: true, sourceId: assocSource, targetId: assocTarget, assocType, assocKind, classAssocKind, assocName: assocNameField, cardinalitySource, cardinalityTarget } as any) as unknown as DiagramComponent;
     })());
     resetAssocSelection();
+    // clear main name input too
+    setName("");
+  };
+
+  const renderOptions = (allowedTypes?: string[]) => {
+    const list = Array.isArray(existing) ? existing as any[] : [];
+    const filtered = typeof allowedTypes === 'undefined' ? list : list.filter((c: any) => allowedTypes.includes((c as any).type));
+    return filtered.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).type ?? ''}</option>);
   };
 
   return (
@@ -158,7 +172,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
         <>
           <div style={{ marginBottom: 8 , display:'flex',flexDirection:'row', alignItems:'center', gap:10}}>
             <label style={{ display: "block", fontSize: 16, color: '#0fa3b4ff' }}>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)', color: '#6365f1f0' }} />
+            <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)', color: '#6365f1f0' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button onClick={onAddActor} style={{ flex: 1 , border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)', color: '#00e5ff' }}>Add Actor</button>
@@ -185,18 +199,18 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
               <div>
                 <div style={{ marginTop: 20, display: 'grid', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1 }}>
                       <label style={{ display: 'block', fontSize: 14, color: "#0fa3b4ff", marginBottom: 6 }}>Source</label>
                       <select value={assocSource ?? ''} onChange={(e) => setAssocSource(e.target.value || null)} style={{ width: '100%', padding: 8 , border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
                         <option value=''>-- select source --</option>
-                        {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id} ({(c as any).type ?? 'component'})</option>)}
+                        {assocKind === 'actor-usecase' ? renderOptions(['actor']) : renderOptions(['usecase'])}
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={{ display: 'block', fontSize: 14, color: "#0fa3b4ff", marginBottom: 6 }}>Target</label>
                       <select value={assocTarget ?? ''} onChange={(e) => setAssocTarget(e.target.value || null)} style={{ width: '100%', padding: 8 , border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
                         <option value=''>-- select target --</option>
-                        {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id} ({(c as any).type ?? 'component'})</option>)}
+                        {renderOptions(['usecase'])}
                       </select>
                     </div>
                   </div>
@@ -216,14 +230,14 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
         <>
           <div style={{ marginBottom: 8 }}>
             <label style={{ display: "block", fontSize: 12, color: "#333" }}>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
+            <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button onClick={onAddClass} style={{ flex: 1 }}>Add Class</button>
             <button onClick={onAddInterface} style={{ flex: 1 }}>Add Interface</button>
           </div>
           <div style={{ height: 12 }} />
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 8, display:'flex',flexDirection:'column' }}>
             <label style={{ display: "block", fontSize: 12, color: "#333" }}>Class associations</label>
             <select value={classAssocKind} onChange={(e) => setClassAssocKind(e.target.value as any)} style={{ width: "100%", padding: 8 }}>
               <option value="association">association</option>
@@ -239,22 +253,34 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', fontSize: 12 }}>Source</label>
-                <select value={assocSource ?? ''} onChange={(e) => setAssocSource(e.target.value || null)} style={{ width: '100%', padding: 8 }}>
+                <select value={assocSource ?? ''} onChange={(e) => setAssocSource(e.target.value || null)} style={{ width: '100%', padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
                   <option value=''>-- select source --</option>
                   {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id} ({(c as any).type ?? 'component'})</option>)}
                 </select>
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', fontSize: 12 }}>Target</label>
-                <select value={assocTarget ?? ''} onChange={(e) => setAssocTarget(e.target.value || null)} style={{ width: '100%', padding: 8 }}>
+                <select value={assocTarget ?? ''} onChange={(e) => setAssocTarget(e.target.value || null)} style={{ width: '100%', padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
                   <option value=''>-- select target --</option>
                   {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id} ({(c as any).type ?? 'component'})</option>)}
                 </select>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <input type="number" min="0" placeholder="src card" value={cardinalitySource} onChange={(e) => setCardinalitySource(e.target.value)} style={{ flex: 1, padding: 8 }} />
-              <input type="number" min="0" placeholder="tgt card" value={cardinalityTarget} onChange={(e) => setCardinalityTarget(e.target.value)} style={{ flex: 1, padding: 8 }} />
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <select value={cardinalitySource} onChange={(e) => setCardinalitySource(e.target.value)} style={{ flex: 1, padding: 8, minWidth: 0, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
+                <option value="">-- source cardinality --</option>
+                <option value="1">1</option>
+                <option value="0">0</option>
+                <option value="*">*</option>
+                <option value="1...*">1...*</option>
+              </select>
+              <select value={cardinalityTarget} onChange={(e) => setCardinalityTarget(e.target.value)} style={{ flex: 1, padding: 8, minWidth: 0, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
+                <option value="">-- target cardinality --</option>
+                <option value="1">1</option>
+                <option value="0">0</option>
+                <option value="*">*</option>
+                <option value="1...*">1...*</option>
+              </select>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button onClick={onCreateAssoc} style={{ flex: 1 }} disabled={!assocSource || !assocTarget || assocSource === assocTarget}>Create Association</button>
@@ -281,7 +307,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
         <>
           <div style={{ marginBottom: 8 }}>
             <label style={{ display: "block", fontSize: 12, color: "#333" }}>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
+            <input value={name} placeholder="Name of component...." onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 8 }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button onClick={onAddActor} style={{ flex: 1 }}>Add Actor</button>
@@ -452,21 +478,21 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
                               if (src) {
                                 assoc.source = src;
                               }
-                            }} style={{ width: "100%", padding: 6 }}>
+                            }} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
                               <option value="">-- select --</option>
-                              {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id}</option>)}
+                              {renderOptions()}
                             </select>
                             <label style={{ display: "block", fontSize: 12, marginTop: 8 }}>Target</label>
-                            <select defaultValue={(assoc?.target as any)?.id ?? ""} onChange={(e) => {
-                              const id = e.target.value;
-                              const tgt = existing.find((c: any) => (c as any).id === id);
-                              if (tgt) {
-                                assoc.target = tgt;
-                              }
-                            }} style={{ width: "100%", padding: 6 }}>
-                              <option value="">-- select --</option>
-                              {existing.map((c: any) => <option key={(c as any).id} value={(c as any).id}>{(c as any).name ?? (c as any).id}</option>)}
-                            </select>
+                              <select defaultValue={(assoc?.target as any)?.id ?? ""} onChange={(e) => {
+                                const id = e.target.value;
+                                const tgt = existing.find((c: any) => (c as any).id === id);
+                                if (tgt) {
+                                  assoc.target = tgt;
+                                }
+                              }} style={{ width: "100%", padding: 8, border: '1px solid rgba(0, 200, 255, 0.28)', borderRadius: 6, background: 'rgba(0,0,0,0.25)' }}>
+                                <option value="">-- select --</option>
+                                {renderOptions()}
+                              </select>
                             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                               <button onClick={() => { if (onUpdateAssociation) onUpdateAssociation(assoc as DiagramAssociation); }} style={{ flex: 1 }}>Apply</button>
                             </div>
@@ -481,7 +507,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
       {showBackConfirm && (
         <Modal title="Save changes?" onClose={() => setShowBackConfirm(false)}>
           <div style={{ padding: 8 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: '#bffaff' }}>Save changes?</div>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: '#bffaff' }}></div>
             <div style={{ marginBottom: 12 }}>Do you want to save the current diagram session before returning to Home? Choosing Save will persist the session to your project.</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn ghost" onClick={() => setShowBackConfirm(false)}>Cancel</button>

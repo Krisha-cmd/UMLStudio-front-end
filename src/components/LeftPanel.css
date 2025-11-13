@@ -1,6 +1,6 @@
 .uml-leftpanel {
   position: fixed;
-  left: 0;
+  left: 48px; /* shifted right to make room for the left strip */
   top: 0;
   bottom: 0;
   width: 360px;
