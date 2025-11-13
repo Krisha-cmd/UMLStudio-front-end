@@ -407,28 +407,26 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
 
               // generic component editor fallback
               const nameRef = React.createRef<HTMLInputElement>();
-              const xRef = React.createRef<HTMLInputElement>();
-              const yRef = React.createRef<HTMLInputElement>();
+              // Note: we intentionally do NOT present editable X/Y inputs for selected
+              // components. The runtime position on the component instance is the
+              // authoritative source. When saving, we pick up the current location
+              // from the runtime instance (comp.x / comp.y).
               return (
                 <div>
                   <label style={{ display: "block", fontSize: 12 }}>Name</label>
                   <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6 }} />
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: "block", fontSize: 12 }}>X</label>
-                      <input type="number" defaultValue={comp?.x ?? 0} ref={xRef} style={{ width: "100%", padding: 6 }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: "block", fontSize: 12 }}>Y</label>
-                      <input type="number" defaultValue={comp?.y ?? 0} ref={yRef} style={{ width: "100%", padding: 6 }} />
-                    </div>
+                  <div style={{ marginTop: 8 }}>
+                    <small style={{ color: '#666' }}>Position is read-only here — move the component on the canvas and click Save to persist its current location.</small>
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                     <button onClick={() => {
                       const newName = nameRef.current ? nameRef.current.value : comp?.name;
-                      const nx = xRef.current ? Number(xRef.current.value) : comp?.x;
-                      const ny = yRef.current ? Number(yRef.current.value) : comp?.y;
-                      onUpdateComponent && onUpdateComponent((comp as any).id, { name: newName, x: nx, y: ny });
+                      const nx = (comp as any)?.x ?? undefined;
+                      const ny = (comp as any)?.y ?? undefined;
+                      const patch: any = { name: newName };
+                      if (nx !== undefined) patch.x = nx;
+                      if (ny !== undefined) patch.y = ny;
+                      onUpdateComponent && onUpdateComponent((comp as any).id, patch);
                     }} style={{ flex: 1 }}>Save</button>
                   </div>
                 </div>
