@@ -287,6 +287,90 @@ export const EditorPage: React.FC = () => {
     };
   }, [components, associations, controller, diagCtx]);
 
+  // Keyboard controller: global shortcuts and arrow-key movement / delete
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      try {
+        const ctrl = e.ctrlKey || e.metaKey;
+        // Undo: Ctrl+Z
+        if ((e.key === 'z' || e.key === 'Z') && ctrl) {
+          e.preventDefault();
+          try { diagCtx.undo?.(); } catch {}
+          return;
+        }
+        // Redo: Ctrl+Y
+        if ((e.key === 'y' || e.key === 'Y') && ctrl) {
+          e.preventDefault();
+          try { diagCtx.redo?.(); } catch {}
+          return;
+        }
+        // Save: Ctrl+S
+        if ((e.key === 's' || e.key === 'S') && ctrl) {
+          e.preventDefault();
+          try { diagCtx.saveCurrent?.(); } catch {}
+          return;
+        }
+
+        // Delete selected component/association
+        if (e.key === 'Delete') {
+          e.preventDefault();
+          try {
+            const sel = selection;
+            if (!sel || sel.kind === null) return;
+            if (sel.kind === 'component') {
+              const id = (sel as any).id as string;
+              // remove component from state and any associations referencing it
+              setComponents((prev) => prev.filter((c) => (c as any).id !== id));
+              setAssociations((prev) => prev.filter((a) => ((a as any).sourceId ?? (a as any).source) !== id && ((a as any).targetId ?? (a as any).target) !== id && ((a as any).id ?? '') !== id));
+              // clear controller selection
+              try { controller.clearSelection(); } catch {}
+              // persist immediately
+              try {
+                const diagramJSON = { components: components.map((c) => (c as any).toJSON ? (c as any).toJSON() : (c as any)), associations: associations.map((a) => (a as any).toJSON ? (a as any).toJSON() : (a as any)), type: diagCtx.currentSession?.diagramJSON?.type };
+                diagCtx.updateCurrent?.({ diagramJSON });
+              } catch {}
+            } else if (sel.kind === 'association') {
+              const id = (sel as any).id as string;
+              setAssociations((prev) => prev.filter((a) => ((a as any).id ?? a) !== id));
+              try { controller.clearSelection(); } catch {}
+              try {
+                const diagramJSON = { components: components.map((c) => (c as any).toJSON ? (c as any).toJSON() : (c as any)), associations: associations.map((a) => (a as any).toJSON ? (a as any).toJSON() : (a as any)), type: diagCtx.currentSession?.diagramJSON?.type };
+                diagCtx.updateCurrent?.({ diagramJSON });
+              } catch {}
+            }
+          } catch (err) { /* ignore */ }
+          return;
+        }
+
+        // Arrow keys: move selected component by small delta (8px)
+        const delta = 8;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          const sel = selection;
+          if (!sel || sel.kind !== 'component') return;
+          e.preventDefault();
+          const id = (sel as any).id as string;
+          const comp = components.find((c) => (c as any).id === id) as any;
+          if (!comp) return;
+          let nx = comp.x ?? 0;
+          let ny = comp.y ?? 0;
+          if (e.key === 'ArrowUp') ny -= delta;
+          if (e.key === 'ArrowDown') ny += delta;
+          if (e.key === 'ArrowLeft') nx -= delta;
+          if (e.key === 'ArrowRight') nx += delta;
+          // Use controller.notifyComponentMove so the controller's onComponentMove handler
+          // performs the state update in a single place (and LayoutManager offsets are applied).
+          try { controller.notifyComponentMove(id, nx, ny); } catch (err) {
+            // fallback: directly update state
+            setComponents((prev) => prev.map((c) => { if ((c as any).id === id) { (c as any).x = nx; (c as any).y = ny; } return c; }));
+            setAssociations((prev) => { LayoutManager.assignOffsetsForAll(prev); return [...prev]; });
+          }
+        }
+      } catch (err) { /* swallow */ }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selection, components, associations, diagCtx, controller]);
+
   // Keep the DiagramContext's current session JSON updated when components/associations change.
   useEffect(() => {
     // Debounce updates to avoid rapid round-trips that cause reload loops.

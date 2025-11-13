@@ -442,7 +442,7 @@ export const LeftPanel: React.FC<Props> = ({ canvasModel, existing = [], onAdd, 
                   <label style={{ display: "block", fontSize: 12 }}>Name</label>
                   <input defaultValue={comp?.name ?? ""} ref={nameRef} style={{ width: "100%", padding: 6, border: '1px solid rgba(0, 200, 255, 0.18)', borderRadius: 6, background: 'rgba(0,0,0,0.18)', color: '#00e5ff' }} />
                   <div style={{ marginTop: 8 }}>
-                    <small style={{ color: '#666' }}>Position is read-only here — move the component on the canvas and click Save to persist its current location.</small>
+                    {/* <small style={{ color: '#666' }}>Position is read-only here — move the component on the canvas and click Save to persist its current location.</small> */}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                     <button onClick={() => {
