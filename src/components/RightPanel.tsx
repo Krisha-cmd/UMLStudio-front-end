@@ -10,29 +10,12 @@ import DiagramSession from "../models/DiagramSession";
 
 const IconFor = (kind: string) => {
   const cyan = "#00c8ff";
-  if (kind === "UseCaseDiagram") {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="14" rx="2" stroke={cyan} strokeWidth="1.6" fill="none"/><path d="M7 8h10" stroke={cyan} strokeWidth="1.6" strokeLinecap="round"/></svg>
-    );
-  }
-  if (kind === "ClassDiagram") {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="14" rx="2" stroke={cyan} strokeWidth="1.6" fill="none"/><path d="M3 10h18" stroke={cyan} strokeWidth="1.6" strokeLinecap="round"/></svg>
-    );
-  }
-  if (kind === "component") {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="6" fill={cyan} /></svg>
-    );
-  }
-  if (kind === "association") {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12h12" stroke={cyan} strokeWidth="1.6" strokeLinecap="round"/><path d="M18 12l-3-3v6l3-3z" fill={cyan} /></svg>
-    );
-  }
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="14" rx="2" stroke={cyan} strokeWidth="1.6" fill="none"/></svg>
-  );
+  const baseStyle: React.CSSProperties = { color: cyan, fontSize: 16 };
+  if (kind === "UseCaseDiagram") return <i className="fas fa-file" style={baseStyle} aria-hidden />;
+  if (kind === "ClassDiagram") return <i className="fas fa-th-large" style={baseStyle} aria-hidden />;
+  if (kind === "component") return <i className="fas fa-cube" style={baseStyle} aria-hidden />;
+  if (kind === "association") return <i className="fas fa-link" style={baseStyle} aria-hidden />;
+  return <i className="fas fa-file" style={baseStyle} aria-hidden />;
 };
 
 const RightPanel: React.FC = () => {
@@ -190,7 +173,13 @@ const RightPanel: React.FC = () => {
   return (
     <div key={containerKey} className="uml-rightpanel" style={{ position: "fixed", right: 0, top: 0, bottom: 0, width, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: 8, borderBottom: "1px solid #eef2f7", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <strong>Project</strong>
+                    <div className="uml-project-header" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ cursor: 'pointer' }} onClick={() => setProjectCollapsed((p) => !p)}>
+                <i className="fas fa-chevron-down" style={{ color: '#00c8ff', transform: projectCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 120ms' }} aria-hidden />
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{project.name || "(untitled)"}</div>
+              <div style={{ fontSize: 12, color: "#9fcbd6" }}>{project.description}</div>
+            </div>
         <div style={{ display: "flex", gap: 8, alignItems: 'center' }}>
           <button className="btn-delete" title="Delete project" onClick={() => setShowDeleteConfirm(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18" stroke="#ff3b30" strokeWidth="1.4" strokeLinecap="round"/><path d="M8 6v12a2 2 0 002 2h4a2 2 0 002-2V6" stroke="#ff3b30" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6M14 11v6" stroke="#ff3b30" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -201,13 +190,7 @@ const RightPanel: React.FC = () => {
   <div className="uml-rightpanel-scroll" style={{ overflow: "auto", flex: '1 1 auto', padding: 8, minHeight: 0 }}>
         {project ? (
           <div>
-            <div className="uml-project-header" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ cursor: 'pointer' }} onClick={() => setProjectCollapsed((p) => !p)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" style={{ transform: projectCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 120ms' }}><path d="M6 9l6 6 6-6" stroke="#00c8ff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{project.name || "(untitled)"}</div>
-              <div style={{ fontSize: 12, color: "#9fcbd6" }}>{project.description}</div>
-            </div>
+
             {!projectCollapsed && (
               <div>
                 {project.diagrams.map((d) => (
@@ -215,7 +198,7 @@ const RightPanel: React.FC = () => {
                     <div className="uml-diagram-row">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ cursor: 'pointer' }} onClick={() => handleToggleDiagram((d as any).id)}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" style={{ transform: expandedDiagramId === (d as any).id ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms' }}><path d="M6 9l6 6 6-6" stroke="#00c8ff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          <i className="fas fa-chevron-down" style={{ color: '#00c8ff', transform: expandedDiagramId === (d as any).id ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms' }} aria-hidden />
                         </div>
                         <div className="uml-diagram-left">
                           <span className="uml-icon">{IconFor((d as any).diagramJSON?.type || "UseCaseDiagram")}</span>
@@ -226,10 +209,10 @@ const RightPanel: React.FC = () => {
                         <div className="uml-diagram-type">{(d as any).diagramJSON?.type || "Diagram"}</div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <div style={{ cursor: 'pointer' }} title="Edit diagram" onClick={() => handleEditDiagram(d)}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 21v-3.75L14.06 6.19a2 2 0 012.83 0l1.92 1.92a2 2 0 010 2.83L7.75 22H4a1 1 0 01-1-1z" stroke="#00c8ff" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <i className="fas fa-pen" style={{ color: '#00c8ff' }} aria-hidden />
                           </div>
                           <div style={{ cursor: 'pointer' }} title="Delete diagram" onClick={() => setDiagramDeleteTarget((d as any).id)}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18" stroke="#ff3b30" strokeWidth="1.2" strokeLinecap="round"/><path d="M8 6v12a2 2 0 002 2h4a2 2 0 002-2V6" stroke="#ff3b30" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <i className="fas fa-trash" style={{ color: '#ff3b30' }} aria-hidden />
                           </div>
                         </div>
                       </div>
@@ -263,7 +246,7 @@ const RightPanel: React.FC = () => {
                                     </div>
                                   </div>
                                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                                    <button title="Delete component" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'component', id: c?.id, name: c?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
+                                    <button title="Delete component" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'component', id: c?.id, name: c?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}><i className="fas fa-trash" aria-hidden /></button>
                                   </div>
                                 </div>
                               ))}
@@ -303,13 +286,12 @@ const RightPanel: React.FC = () => {
                                     <span className="uml-icon small">{IconFor("association")}</span>
                                     <div className="uml-diagram-child-title" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                        <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a?.name || `(${assocTypeLabel || 'assoc'})`}</div>
-                                        <div style={{ marginLeft: 'auto', fontSize: 11, color: '#9fdfe8' }}>{assocTypeLabel}</div>
+                                        {/* <div style={{ marginLeft: 'auto', fontSize: 11, color: '#9fdfe8' }}>{assocTypeLabel}</div> */}
                                       </div>
                                       <div style={{ fontSize: 12, color: '#cfeff3' }}>{srcName} → {tgtName}</div>
                                     </div>
                                     <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                                      <button title="Delete association" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'association', id: a?.id, name: a?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}>🗑</button>
+                                      <button title="Delete association" onClick={(ev) => { ev.stopPropagation(); setItemDeleteTarget({ diagramId: (d as any).id, kind: 'association', id: a?.id, name: a?.name }); }} style={{ background: 'transparent', border: 'none', color: '#ff7b7b', cursor: 'pointer' }}><i className="fas fa-trash" aria-hidden /></button>
                                     </div>
                                   </div>
                                 );
