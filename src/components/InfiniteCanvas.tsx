@@ -48,6 +48,7 @@ const styles: { [k: string]: React.CSSProperties } = {
 
 export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, background = "#ffffff", showControls = true, components, associations, controller = null }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const showGridRef = useRef<boolean>(true);
   const modelRef = useRef<CanvasModel>(model ?? new CanvasModel({ cellSize, majorEvery }));
   const propsRef = useRef<{ components?: DiagramComponent[] }>({ components: undefined });
   const last = useRef({ x: 0, y: 0 });
@@ -93,6 +94,9 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       // background
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, w, h);
+
+      // honor showGrid flag
+      if (!showGridRef.current) return;
 
       // compute visible bounds in world coordinates
       const left = -ox / scale;
@@ -281,6 +285,33 @@ export const InfiniteCanvas: React.FC<Props> = ({ model, cellSize, majorEvery, b
       cancelAnimationFrame(raf);
     };
   }, [background]);
+
+  // listen for grid toggle events
+  useEffect(() => {
+    const onToggle = () => {
+      showGridRef.current = !showGridRef.current;
+      try { window.dispatchEvent(new CustomEvent('uml:grid-changed', { detail: { show: showGridRef.current } })); } catch {}
+      setTick((t) => t + 1);
+    };
+    const onSet = (ev: Event) => {
+      try {
+        const d = (ev as CustomEvent).detail ?? {};
+        if (typeof d.show === 'boolean') {
+          showGridRef.current = d.show;
+          window.dispatchEvent(new CustomEvent('uml:grid-changed', { detail: { show: showGridRef.current } }));
+          setTick((t) => t + 1);
+        }
+      } catch {}
+    };
+    window.addEventListener('uml:toggle-grid', onToggle as EventListener);
+    window.addEventListener('uml:set-grid', onSet as EventListener);
+    // announce initial state
+    try { window.dispatchEvent(new CustomEvent('uml:grid-changed', { detail: { show: showGridRef.current } })); } catch {}
+    return () => {
+      window.removeEventListener('uml:toggle-grid', onToggle as EventListener);
+      window.removeEventListener('uml:set-grid', onSet as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     const cvs = canvasRef.current;

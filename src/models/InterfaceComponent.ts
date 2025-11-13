@@ -72,3 +72,14 @@ export class InterfaceComponent extends ClassComponent {
 }
 
 export default InterfaceComponent;
+
+// revive helper similar to ClassComponent
+;(InterfaceComponent as any).reviveFromJSON = function (json: any) {
+  const c = new InterfaceComponent(json?.name ?? "IExample", json.x ?? 0, json.y ?? 0);
+  c.id = json.id ?? c.id;
+  c.width = json.width ?? c.width;
+  c.height = json.height ?? c.height;
+  c.attributes = json.attributes ?? [];
+  c.methods = json.methods ?? [];
+  return c;
+};

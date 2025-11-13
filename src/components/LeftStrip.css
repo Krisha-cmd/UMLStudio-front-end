@@ -32,9 +32,14 @@
 
 .ls-pdf { background: #d93025; color: #fff; }
 .ls-svg { background: #00c8ff; color: #000; }
+.ls-canvas-pdf, .ls-canvas-svg { background: #000; color: #00c8ff; }
 .ls-import, .ls-export { background: #fff; color: #000; }
-.ls-undo, .ls-redo { background: #777; color: #fff; border: 1px solid #00c8ff88; }
+.ls-undo, .ls-redo { background: #414141ae; color: #fff; border: 1px solid #00c8ff88; }
 .ls-save { background: #818cf8; color: #fff; }
+
+/* grid button states: when ON show black background with cyan icon; when OFF show cyan bg with black icon */
+.ls-grid.on { background: #000; color: #00c8ff; border: 1px solid #00c8ff66; }
+.ls-grid.off { background: #00c8ff; color: #000; border: 1px solid #00000033; }
 
 .ls-sep { height: 1px; width: 28px; background: rgba(255,255,255,0.04); margin: 6px 0; }
 .ls-spacer { flex: 1 1 auto; }

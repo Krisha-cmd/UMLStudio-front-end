@@ -307,4 +307,43 @@ export default class Exporter {
     a.click();
     setTimeout(() => { URL.revokeObjectURL(url); }, 5000);
   }
+
+  // Capture the first visible canvas on the page and export it as a PDF (pixel-perfect)
+  static async exportCanvasToPDF(options?: { selector?: string; pageW?: number; pageH?: number }) {
+    const sel = options?.selector ?? 'canvas';
+    const canvas = document.querySelector(sel) as HTMLCanvasElement | null;
+    if (!canvas) { alert('Canvas not found for capture'); return; }
+    const pageW = options?.pageW ?? canvas.width;
+    const pageH = options?.pageH ?? canvas.height;
+
+    try { await loadScript(CDN.jsPDF); } catch (err) { alert('Failed to load PDF library.'); return; }
+    const jsPDF = (window as any).jspdf && (window as any).jspdf.jsPDF ? (window as any).jspdf.jsPDF : (window as any).jsPDF;
+    if (!jsPDF) { alert('PDF library not available'); return; }
+
+    // ensure image is up-to-date (canvas already has current rendering)
+    const dataUrl = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [pageW * 0.75, pageH * 0.75] });
+    const wPt = pageW * 0.75;
+    const hPt = pageH * 0.75;
+    pdf.addImage(dataUrl, 'PNG', 0, 0, wPt, hPt);
+    pdf.save('uml-canvas.pdf');
+  }
+
+  // Capture the canvas and wrap the raster image in an SVG (pixel-perfect but raster inside SVG)
+  static exportCanvasToSVG(options?: { selector?: string; fileName?: string }) {
+    const sel = options?.selector ?? 'canvas';
+    const canvas = document.querySelector(sel) as HTMLCanvasElement | null;
+    if (!canvas) { alert('Canvas not found for capture'); return; }
+    const dataUrl = canvas.toDataURL('image/png');
+    const w = canvas.width;
+    const h = canvas.height;
+    const svg = `<?xml version="1.0" encoding="utf-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">\n  <rect width="100%" height="100%" fill="#ffffff"/>\n  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet" />\n</svg>`;
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = options?.fileName ?? 'uml-canvas.svg';
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); }, 5000);
+  }
 }
