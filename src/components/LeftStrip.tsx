@@ -1,5 +1,6 @@
 import React from "react";
 import { useDiagramContext } from "../context/DiagramContext";
+import Exporter from "../utils/Exporter";
 import "./LeftStrip.css";
 
 const LeftStrip: React.FC = () => {
@@ -7,9 +8,18 @@ const LeftStrip: React.FC = () => {
   return (
     <div className="uml-leftstrip" aria-hidden={false}>
       <div className="uml-leftstrip-inner">
-        <button className="ls-btn ls-pdf" data-tooltip="Export to PDF"><i className="fas fa-file-pdf" aria-hidden /></button>
-        <button className="ls-btn ls-svg" data-tooltip="Export to SVG"><i className="fas fa-file-code" aria-hidden /></button>
+        <button className="ls-btn ls-pdf" data-tooltip="Export to PDF" onClick={async () => {
+          try {
+            await Exporter.exportAllToPDF(diagCtx.sessions || []);
+          } catch (err) { console.warn(err); alert('PDF export failed'); }
+        }}><i className="fas fa-file-pdf" aria-hidden /></button>
+        <button className="ls-btn ls-svg" data-tooltip="Export to SVG" onClick={async () => {
+          try {
+            await Exporter.exportAllToSVGZip(diagCtx.sessions || []);
+          } catch (err) { console.warn(err); alert('SVG export failed'); }
+        }}><i className="fas fa-file-code" aria-hidden /></button>
         <button className="ls-btn ls-import" data-tooltip="Import"><i className="fas fa-upload" aria-hidden /></button>
+        <button className="ls-btn ls-export" data-tooltip="Export"><i className="fas fa-download" aria-hidden /></button>
         <div className="ls-sep" />
         <button className="ls-btn ls-undo" data-tooltip="Undo" onClick={() => diagCtx.undo()}><i className="fas fa-undo" aria-hidden /></button>
         <button className="ls-btn ls-redo" data-tooltip="Redo" onClick={() => diagCtx.redo()}><i className="fas fa-redo" aria-hidden /></button>
