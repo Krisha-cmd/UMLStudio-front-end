@@ -40,3 +40,44 @@
 .ls-spacer { flex: 1 1 auto; }
 
 .ls-btn svg { display: block; }
+
+/* Stylish tooltip for left strip buttons */
+.ls-btn { position: relative; }
+.ls-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.ls-btn::before {
+  content: '';
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid rgba(0,0,0,0.85);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.ls-btn:hover::after,
+.ls-btn:focus::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+.ls-btn:hover::before,
+.ls-btn:focus::before { opacity: 1; }

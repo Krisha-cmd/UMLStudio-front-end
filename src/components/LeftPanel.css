@@ -37,3 +37,10 @@
 
 /* Resizer handle on the right edge */
 .uml-leftpanel-resizer { position: absolute; right: -6px; top: 0; bottom: 0; width: 12px; cursor: col-resize; z-index: 60; }
+
+
+.uml-leftpanel option {
+    background-color:  rgb(5, 15, 18);
+    border:none;
+    border-radius: 4px;
+}

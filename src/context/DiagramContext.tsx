@@ -10,6 +10,11 @@ type DiagramContextValue = {
   updateCurrent: (patch: Partial<StoredDiagramSession>) => void;
   saveCurrent: () => void;
   closeCurrent: () => void;
+  // undo/redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 };
 
 const Ctx = createContext<DiagramContextValue | null>(null);
@@ -48,6 +53,11 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {}
   }, [sessions]);
 
+  // history stacks for undo/redo for the currently-open session only
+  const [history, setHistory] = useState<StoredDiagramSession[]>([]);
+  const [redoStack, setRedoStack] = useState<StoredDiagramSession[]>([]);
+  const skipHistoryRef = React.useRef(false);
+
   // create a new session and make it current
   const createSession = (name?: string, diagramJSON?: any) => {
     const defaulted = Object.assign({}, diagramJSON ?? {});
@@ -56,6 +66,9 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
     s.saveToLocalStorage();
     setSessions((prev) => [s, ...prev]);
     setCurrentId(s.id);
+    // reset history when creating a new session
+    setHistory([]);
+    setRedoStack([]);
     // eslint-disable-next-line no-console
     console.log("DiagramProvider: created session ->", s.toJSON());
     return s;
@@ -125,6 +138,9 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const s = DiagramSession.loadById(id);
         if (s) {
           setCurrentId(s.id);
+          // reset history when switching sessions
+          setHistory([]);
+          setRedoStack([]);
           // eslint-disable-next-line no-console
           console.log("DiagramProvider: opened session ->", s.toJSON());
         }
@@ -141,6 +157,14 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateCurrent = (patch: Partial<StoredDiagramSession>) => {
     const cs = currentSession;
     if (!cs) return;
+    // if not skipping history (i.e. regular user action), push previous snapshot
+    if (!skipHistoryRef.current) {
+      try {
+        const prev = cs.toJSON();
+        setHistory((h) => [prev, ...h].slice(0, 10));
+        setRedoStack([]);
+      } catch {}
+    }
     if (patch.name !== undefined) cs.name = patch.name;
     if (patch.diagramJSON !== undefined) {
       // merge incoming JSON with existing to avoid losing established properties like `type`
@@ -184,6 +208,41 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
     console.log("DiagramProvider: closed current session");
   };
 
+  const undo = () => {
+    const cs = currentSession;
+    if (!cs) return;
+    if (history.length === 0) return;
+    const [latest, ...rest] = history;
+    const currentSnapshot = cs.toJSON();
+    // push current into redo stack
+    setRedoStack((r) => [currentSnapshot, ...r].slice(0, 10));
+    // apply latest snapshot without recording it to history
+    skipHistoryRef.current = true;
+    try {
+      updateCurrent({ diagramJSON: latest.diagramJSON, name: latest.name });
+    } finally {
+      setHistory(rest.slice(0, 10));
+      skipHistoryRef.current = false;
+    }
+  };
+
+  const redo = () => {
+    const cs = currentSession;
+    if (!cs) return;
+    if (redoStack.length === 0) return;
+    const [nextSnapshot, ...rest] = redoStack;
+    const currentSnapshot = cs.toJSON();
+    // push current into history
+    setHistory((h) => [currentSnapshot, ...h].slice(0, 10));
+    skipHistoryRef.current = true;
+    try {
+      updateCurrent({ diagramJSON: nextSnapshot.diagramJSON, name: nextSnapshot.name });
+    } finally {
+      setRedoStack(rest.slice(0, 10));
+      skipHistoryRef.current = false;
+    }
+  };
+
   // auto-save on unload
   useEffect(() => {
     const onUnload = () => {
@@ -212,6 +271,10 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateCurrent,
     saveCurrent,
     closeCurrent,
+    undo,
+    redo,
+    canUndo: history.length > 0,
+    canRedo: redoStack.length > 0,
   };
 
   // Expose a small debug API on window for quick testing in the browser console.
@@ -224,6 +287,10 @@ export const DiagramProvider: React.FC<{ children: React.ReactNode }> = ({ child
         saveCurrent: () => saveCurrent(),
         updateCurrent: (patch: Partial<StoredDiagramSession>) => updateCurrent(patch),
         closeCurrent: () => closeCurrent(),
+        undo: () => undo(),
+        redo: () => redo(),
+        canUndo: () => history.length > 0,
+        canRedo: () => redoStack.length > 0,
       };
       // eslint-disable-next-line no-console
       console.log("DiagramProvider: __umlDiagramAPI exposed on window for testing");
