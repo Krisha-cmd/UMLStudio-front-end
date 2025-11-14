@@ -9,8 +9,14 @@ import { useAuthContext } from "./context/AuthContext";
 export const AppRouter: React.FC = () => {
   const { token } = useAuthContext();
 
+  // When deploying to GitHub Pages under a repo subpath (e.g. /<user>/<repo>/)
+  // the router must be aware of the base path so route matching works.
+  // Vite exposes the configured `base` as `import.meta.env.BASE_URL`.
+  // Fallback to '/UMLStudio-front-end/' if BASE_URL is not set.
+  const basename = (import.meta as any).env?.BASE_URL ?? '/UMLStudio-front-end/';
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<LoginPage />} />
