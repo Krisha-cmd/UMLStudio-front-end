@@ -135,38 +135,26 @@ export default class Exporter {
     // background
     parts.push(`<rect width="100%" height="100%" fill="#ffffff"/>`);
 
-    // draw associations (lines)
-    for (const a of assocs) {
-      try {
-        const src = comps.find((c) => c.id === a.sourceId);
-        const tgt = comps.find((c) => c.id === a.targetId);
-        if (!src || !tgt) continue;
-        const sx = transformX((src.x ?? 0) + (src.width ?? 100) / 2);
-        const sy = transformY((src.y ?? 0) + (src.height ?? 60) / 2);
-        const tx = transformX((tgt.x ?? 0) + (tgt.width ?? 100) / 2);
-        const ty = transformY((tgt.y ?? 0) + (tgt.height ?? 60) / 2);
-        parts.push(`<g stroke="#333" fill="none" stroke-width="${Math.max(1, 2 * scale)}">`);
-        parts.push(`<line x1="${sx}" y1="${sy}" x2="${tx}" y2="${ty}" />`);
-        // arrow
-        const ang = Math.atan2(ty - sy, tx - sx);
-        const ah = Math.max(6, 12 * (scale || 1));
-        const ax1 = tx - ah * Math.cos(ang - Math.PI / 6);
-        const ay1 = ty - ah * Math.sin(ang - Math.PI / 6);
-        const ax2 = tx - ah * Math.cos(ang + Math.PI / 6);
-        const ay2 = ty - ah * Math.sin(ang + Math.PI / 6);
-        parts.push(`<polygon points="${tx},${ty} ${ax1},${ay1} ${ax2},${ay2}" fill="#333"/>`);
-        if (a.name) {
-          const mx = (sx + tx) / 2;
-          const my = (sy + ty) / 2;
-          const labW = Math.min(160, Math.max(60, 80 * (scale || 1)));
-          parts.push(`<rect x="${mx - labW/2}" y="${my - 12}" width="${labW}" height="24" fill="#fff" stroke="none" rx="4"/>`);
-          parts.push(`<text x="${mx}" y="${my}" text-anchor="middle" font-family="sans-serif" font-size="${Math.max(10, 12 * scale)}" fill="#111" dominant-baseline="middle">${escape(a.name)}</text>`);
-        }
-        parts.push(`</g>`);
-      } catch (err) { /* continue */ }
-    }
+    // associations will be drawn after components so they appear on top
 
     // draw components
+    // 1) draw system-boundary elements first so they sit on top of the canvas but below other components
+    for (const c of comps) {
+      try {
+        const type = (c.type ?? "component").toLowerCase();
+        if (type !== "system-boundary") continue;
+        const x = transformX(c.x ?? 0);
+        const y = transformY(c.y ?? 0);
+        const w = transformW(c.width ?? 100);
+        const h = transformH(c.height ?? 60);
+        parts.push(`<g stroke="#999" fill="#fff" stroke-width="1">`);
+        parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`);
+        parts.push(`</g>`);
+        parts.push(`<text x="${x + 12}" y="${y + 20}" font-family="sans-serif" font-size="14" fill="#444">${escape(c.name ?? "System")}</text>`);
+      } catch (err) { /* ignore per-component errors */ }
+    }
+
+    // 2) draw the remaining components (actors, usecases, classes, etc.) so they appear above the boundary
     for (const c of comps) {
       try {
         const x = transformX(c.x ?? 0);
@@ -174,6 +162,10 @@ export default class Exporter {
         const w = transformW(c.width ?? 100);
         const h = transformH(c.height ?? 60);
         const type = (c.type ?? "component").toLowerCase();
+        if (type === "system-boundary") {
+          // already rendered above
+          continue;
+        }
         if (type === "actor") {
           // simple stick figure: circle head + lines
           const cx = x + Math.round(w / 2);
@@ -214,6 +206,8 @@ export default class Exporter {
               ay += 16 * (scale || 1);
             }
           }
+
+          
           // separator before methods - compute from bottom similar to runtime component
           const sepY = y + h - Math.max(16 * (scale || 1), (Array.isArray(c.methods) ? c.methods.length : 0) * 16 * (scale || 1) + pad);
           parts.push(`<line x1="${x}" y1="${sepY}" x2="${x + w}" y2="${sepY}" stroke="#222" stroke-width="${Math.max(1, 1 * (scale || 1))}" />`);
@@ -227,11 +221,6 @@ export default class Exporter {
               my += 16 * (scale || 1);
             }
           }
-        } else if (type === "system-boundary") {
-          parts.push(`<g stroke="#999" fill="#fff" stroke-width="1">`);
-          parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`);
-          parts.push(`</g>`);
-          parts.push(`<text x="${x + 12}" y="${y + 20}" font-family="sans-serif" font-size="14" fill="#444">${escape(c.name ?? "System")}</text>`);
         } else if (type === "interface") {
           // interface: draw like class but put «interface» label centered at top
           const pad = 8 * (scale || 1);
@@ -275,6 +264,84 @@ export default class Exporter {
     }
 
     // footer: diagram name
+    // draw associations after components so links/arrows appear on top
+    const resolveEndpoint = (a: any, which: 'source' | 'target') => {
+      const idKey = which === 'source' ? 'sourceId' : 'targetId';
+      const idxKey = which === 'source' ? 'sourceIndex' : 'targetIndex';
+      const shortKey = which === 'source' ? 'source' : 'target';
+      const did = a?.[idKey];
+      if (typeof did === 'string') return comps.find((c) => c.id === did) || null;
+      const idx = (typeof a?.[idxKey] === 'number') ? a[idxKey] : (typeof a?.[shortKey] === 'number' ? a[shortKey] : null);
+      if (typeof idx === 'number' && idx >= 0 && idx < comps.length) return comps[idx];
+      const obj = a?.[shortKey];
+      if (obj && typeof obj === 'object' && typeof obj.id === 'string') return comps.find((c) => c.id === obj.id) || null;
+      const possibleId = a?.[shortKey + 'Id'] ?? a?.[which + 'ComponentId'] ?? null;
+      if (typeof possibleId === 'string') return comps.find((c) => c.id === possibleId) || null;
+      return null;
+    };
+
+    const getEdgePoint = (comp: any, otherX: number, otherY: number) => {
+      const cx = transformX((comp.x ?? 0) + (comp.width ?? 100) / 2);
+      const cy = transformY((comp.y ?? 0) + (comp.height ?? 60) / 2);
+      const hw = transformW(comp.width ?? 100) / 2;
+      const hh = transformH(comp.height ?? 60) / 2;
+      const dx = otherX - cx;
+      const dy = otherY - cy;
+      if (Math.abs(dx) < 0.0001 && Math.abs(dy) < 0.0001) return { x: cx, y: cy };
+      let tx = cx;
+      let ty = cy;
+      if (Math.abs(dx) < 0.0001) {
+        tx = cx;
+        ty = cy + Math.sign(dy) * hh;
+        return { x: tx, y: ty };
+      }
+      if (Math.abs(dy) < 0.0001) {
+        tx = cx + Math.sign(dx) * hw;
+        ty = cy;
+        return { x: tx, y: ty };
+      }
+      const scaleX = hw / Math.abs(dx);
+      const scaleY = hh / Math.abs(dy);
+      const scaleLocal = Math.min(scaleX, scaleY);
+      tx = cx + dx * scaleLocal;
+      ty = cy + dy * scaleLocal;
+      return { x: tx, y: ty };
+    };
+
+    for (const a of assocs) {
+      try {
+        const src = resolveEndpoint(a, 'source');
+        const tgt = resolveEndpoint(a, 'target');
+        if (!src || !tgt) continue;
+        const srcCenterX = transformX((src.x ?? 0) + (src.width ?? 100) / 2);
+        const srcCenterY = transformY((src.y ?? 0) + (src.height ?? 60) / 2);
+        const tgtCenterX = transformX((tgt.x ?? 0) + (tgt.width ?? 100) / 2);
+        const tgtCenterY = transformY((tgt.y ?? 0) + (tgt.height ?? 60) / 2);
+        const sPt = getEdgePoint(src, tgtCenterX, tgtCenterY);
+        const tPt = getEdgePoint(tgt, srcCenterX, srcCenterY);
+        const sx = sPt.x;
+        const sy = sPt.y;
+        const tx = tPt.x;
+        const ty = tPt.y;
+        parts.push(`<g stroke="#333" fill="none" stroke-width="${Math.max(1, 2 * scale)}">`);
+        parts.push(`<line x1="${sx}" y1="${sy}" x2="${tx}" y2="${ty}" />`);
+        const ang = Math.atan2(ty - sy, tx - sx);
+        const ah = Math.max(6, 12 * (scale || 1));
+        const ax1 = tx - ah * Math.cos(ang - Math.PI / 6);
+        const ay1 = ty - ah * Math.sin(ang - Math.PI / 6);
+        const ax2 = tx - ah * Math.cos(ang + Math.PI / 6);
+        const ay2 = ty - ah * Math.sin(ang + Math.PI / 6);
+        parts.push(`<polygon points="${tx},${ty} ${ax1},${ay1} ${ax2},${ay2}" fill="#333"/>`);
+        if (a.name) {
+          const mx = (sx + tx) / 2;
+          const my = (sy + ty) / 2;
+          const labW = Math.min(160, Math.max(60, 80 * (scale || 1)));
+          parts.push(`<rect x="${mx - labW/2}" y="${my - 12}" width="${labW}" height="24" fill="#fff" stroke="none" rx="4"/>`);
+          parts.push(`<text x="${mx}" y="${my}" text-anchor="middle" font-family="sans-serif" font-size="${Math.max(10, 12 * scale)}" fill="#111" dominant-baseline="middle">${escape(a.name)}</text>`);
+        }
+        parts.push(`</g>`);
+      } catch (err) { /* continue */ }
+    }
     if (diagramJSON?.name) {
       parts.push(`<text x="${outW - 12}" y="${outH - 12}" text-anchor="end" font-family="sans-serif" font-size="11" fill="#666">${escape(diagramJSON.name)}</text>`);
     }
@@ -331,10 +398,18 @@ export default class Exporter {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [pageW * 0.75, pageH * 0.75] });
     // using 0.75 to approximate px->pt
 
-    for (let i = 0; i < sessions.length; i++) {
-      const raw = sessions[i];
+    // Only export full diagrams: require a `components` array (inside diagramJSON or top-level)
+    const items = (sessions || []).filter((it: any) => {
+      if (!it) return false;
+      const candidate = it.diagramJSON ?? it;
+      return Array.isArray(candidate.components) && candidate.components.length > 1;
+    });
+    console.log(`Exporter items ${items}: exporting ${items.length} diagrams to PDF...`);
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i];
       const s = raw && raw.diagramJSON ? raw.diagramJSON : (typeof raw.toJSON === 'function' ? raw.toJSON() : raw);
-      const svg = Exporter.renderDiagramToSVG(s.diagramJSON ?? s, pageW, pageH);
+      // s is expected to be a diagram object (with components[])
+      const svg = Exporter.renderDiagramToSVG(s, pageW, pageH);
       const imgData = await Exporter.svgToImageData(svg, pageW, pageH);
       // add image to pdf
       const wPt = pageW * 0.75;
@@ -361,7 +436,12 @@ export default class Exporter {
     const zip = new JSZip();
 
     let idx = 0;
-    for (const raw of sessions) {
+    const items2 = (sessions || []).filter((it: any) => {
+      if (!it) return false;
+      const candidate = it.diagramJSON ?? it;
+      return Array.isArray(candidate.components) && candidate.components.length > 0;
+    });
+    for (const raw of items2) {
       idx += 1;
       const s = raw && raw.diagramJSON ? raw.diagramJSON : (typeof raw.toJSON === 'function' ? raw.toJSON() : raw);
       const svg = Exporter.renderDiagramToSVG(s.diagramJSON ?? s, 1600, 900);

@@ -269,7 +269,7 @@ const RightPanel: React.FC = () => {
                                 };
                                 const srcName = resolveName(a?.sourceId ?? a?.source ?? a?.source?.id);
                                 const tgtName = resolveName(a?.targetId ?? a?.target ?? a?.target?.id);
-                                const assocTypeLabel = a?.assocType ?? a?.kind ?? a?.type ?? a?.name ?? '';
+                                // const assocTypeLabel = a?.assocType ?? a?.kind ?? a?.type ?? a?.name ?? '';
                                 return (
                                   <div key={i} className="uml-diagram-child-row association" style={{ cursor: 'pointer' }} onClick={() => {
                                     try {
