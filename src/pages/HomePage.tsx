@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import { useDiagramContext } from "../context/DiagramContext";
+import DiagramSession from "../models/DiagramSession";
 import { useProjectContext } from "../context/ProjectContext";
 import * as api from "../api.config";
 import "./HomePage.css";
@@ -92,6 +93,20 @@ export const HomePage: React.FC = () => {
                             const projectJSON = p.projectDetails ?? p.projectDetails?.project ?? null;
                             if (projectJSON) {
                               try { projectCtx.setProjectFromJSON?.(projectJSON); } catch (e) { /* ignore */ }
+                              // Persist project diagrams into DiagramSession storage so the editor can open them
+                              try {
+                                const diagrams = Array.isArray(projectJSON.diagrams) ? projectJSON.diagrams : projectJSON.project?.diagrams ?? [];
+                                for (const ds of diagrams) {
+                                  try {
+                                    const s = DiagramSession.fromJSON(ds);
+                                    s.saveToLocalStorage();
+                                  } catch (ex) { /* ignore per-diagram errors */ }
+                                }
+                                if (diagrams.length > 0) {
+                                  // open the first diagram so the editor canvas has content
+                                  try { diagCtx.openSessionById(diagrams[0].id); } catch (ex) { /* ignore */ }
+                                }
+                              } catch (ex) { /* ignore */ }
                             } else {
                               // eslint-disable-next-line no-console
                               console.warn('HomePage: clicked project has no projectDetails to load', p);
